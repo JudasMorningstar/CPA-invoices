@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PropLens Invoice</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #181818;
+    --surface3: #202020;
+    --border: #2a2a2a;
+    --amber: #c8922a;
+    --amber-bright: #e8a830;
+    --amber-dim: #7a5218;
+    --text: #e8e0d0;
+    --text-dim: #888070;
+    --text-muted: #444038;
+    --green: #4a9e6a;
+    --red: #c04040;
+    --warning: #c87820;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(200,146,42,0.03) 39px, rgba(200,146,42,0.03) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(200,146,42,0.03) 39px, rgba(200,146,42,0.03) 40px);
+  }
+
+  /* STICKY TOTALS BAR */
+  #totals-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,10,10,0.96);
+    border-bottom: 1px solid var(--amber-dim);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; gap: 0;
+    height: 48px;
+    padding: 0 24px;
+  }
+  .bar-brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--amber);
+    letter-spacing: 2px;
+    margin-right: 32px;
+    white-space: nowrap;
+  }
+  .bar-divider { width: 1px; height: 24px; background: var(--border); margin: 0 20px; }
+  .bar-item { display: flex; flex-direction: column; gap: 1px; }
+  .bar-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
+  .bar-value { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); }
+  .bar-value.taxable { color: var(--amber-bright); }
+  .bar-value.extras { color: var(--green); }
+  .bar-value.grand { color: #fff; font-size: 15px; }
+  .bar-value.paye { color: var(--red); }
+  .bar-spacer { flex: 1; }
+  #export-btn {
+    background: var(--amber);
+    color: #000;
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    padding: 8px 20px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+  #export-btn:hover { background: var(--amber-bright); transform: scale(1.02); }
+  #pdf-btn {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px; letter-spacing: 2px;
+    padding: 8px 18px; cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+  #pdf-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: var(--amber-dim); }
+
+  .main { padding: 68px 24px 120px; max-width: 1100px; margin: 0 auto; }
+
+  /* SECTION HEADERS */
+  .section-head {
+    display: flex; align-items: center; gap: 12px;
+    margin: 32px 0 16px;
+  }
+  .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--amber); border: 1px solid var(--amber-dim);
+    width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; letter-spacing: 3px; color: var(--text);
+  }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 2px;
+  }
+
+  /* GRID INPUTS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text-dim); font-family: 'IBM Plex Mono', monospace;
+  }
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: var(--amber); }
+  .field input::placeholder { color: var(--text-muted); }
+  .field select option { background: var(--surface2); }
+
+  /* DAILY RATE HERO */
+  .rate-hero {
+    background: var(--surface2);
+    border: 1px solid var(--amber-dim);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 24px;
+  }
+  .rate-hero label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px; color: var(--amber);
+  }
+  .rate-hero input {
+    background: transparent;
+    border: none; border-bottom: 2px solid var(--amber);
+    color: var(--amber-bright);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px; font-weight: 600;
+    width: 160px; outline: none;
+    padding: 4px 8px;
+  }
+  .rate-hero .derived {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--text-dim);
+    margin-left: auto;
+  }
+  .rate-hero .derived span { color: var(--amber); }
+
+  /* TIMESHEET TABLE */
+  .ts-wrap { width: 100%; }
+  table.ts {
+    width: 100%; border-collapse: collapse;
+    table-layout: fixed;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  }
+  /* Fixed column widths — tuned to fit without scrolling */
+  table.ts col.c-date  { width: 94px; }
+  table.ts col.c-desc  { width: auto; }   /* flex fill */
+  table.ts col.c-type  { width: 90px; }
+  table.ts col.c-call  { width: 52px; }
+  table.ts col.c-wrap  { width: 52px; }
+  table.ts col.c-days  { width: 34px; }
+  table.ts col.c-hrs   { width: 38px; }
+  table.ts col.c-oth   { width: 34px; }
+  table.ts col.c-otc   { width: 60px; }
+  table.ts col.c-oth2  { width: 34px; }
+  table.ts col.c-otc2  { width: 60px; }
+  table.ts col.c-oth3  { width: 34px; }
+  table.ts col.c-otc3  { width: 60px; }
+  table.ts col.c-tah   { width: 44px; }
+  table.ts col.c-tac   { width: 58px; }
+  table.ts col.c-amt   { width: 72px; }
+  table.ts col.c-del   { width: 28px; }
+  table.ts th {
+    background: var(--surface3);
+    color: var(--text-dim);
+    font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 6px 3px; text-align: center;
+    border-bottom: 1px solid var(--amber-dim);
+    white-space: nowrap; overflow: hidden;
+  }
+  table.ts th.left { text-align: left; padding-left: 5px; }
+  table.ts td {
+    padding: 3px 3px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  table.ts td.left { text-align: left; }
+  table.ts tr:hover td { background: rgba(200,146,42,0.04); }
+
+  /* Group headers in table */
+  table.ts th.group-ot { background: rgba(200,146,42,0.12); color: var(--amber); }
+  table.ts th.group-ta { background: rgba(200,120,32,0.1); color: var(--warning); }
+  table.ts th.group-amt { background: rgba(255,255,255,0.05); color: var(--text); }
+
+  table.ts td input, table.ts td select {
+    background: var(--surface2);
+    border: 1px solid transparent;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 3px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.1s;
+  }
+  table.ts td input:focus, table.ts td select:focus { border-color: var(--amber); }
+  table.ts td select option { background: #1a1a1a; }
+
+  .calc-cell {
+    color: var(--text-dim);
+    font-size: 11px;
+    padding: 0 6px;
+  }
+  .calc-cell.has-value { color: var(--amber-bright); }
+  .calc-cell.amount { color: var(--text); font-weight: 600; font-size: 13px; }
+  .calc-cell.amount.nonzero { color: #fff; }
+
+  .ta-warn {
+    display: inline-block;
+    background: var(--warning);
+    color: #000;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* Row delete */
+  .del-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-muted); cursor: pointer;
+    font-size: 15px; line-height: 1;
+    padding: 3px 7px; border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .del-btn:hover {
+    color: var(--red);
+    border-color: var(--red);
+    background: rgba(192,64,64,0.08);
+  }
+
+  /* Time text input — inherits table cell sizing */
+  .time-text {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--text); background: var(--surface2);
+    border: 1px solid transparent; outline: none;
+    width: 100%; padding: 4px 2px; text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .time-text:focus { border-color: var(--amber); color: var(--amber); background: var(--surface); }
+  .time-text.invalid { border-color: var(--red); color: var(--red); }
+
+  /* Add row button */
+  .add-row-btn {
+    width: 100%; margin-top: 2px;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 1px;
+    padding: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    text-align: center;
+  }
+  .add-row-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  /* SUBTOTALS */
+  .subtotal-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    margin-top: 2px;
+  }
+  .subtotal-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .subtotal-row:last-child { border-bottom: none; }
+  .subtotal-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);
+  }
+  .subtotal-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px; font-weight: 600; color: var(--amber-bright);
+  }
+  .subtotal-row.total-row .subtotal-label { color: var(--text); font-size: 13px; }
+  .subtotal-row.total-row .subtotal-value { color: #fff; font-size: 18px; }
+  .subtotal-row.paye-row .subtotal-value { color: var(--red); }
+  .subtotal-row.grand-row {
+    background: rgba(200,146,42,0.08);
+    padding: 10px 8px; margin: 8px -8px -16px;
+    border: 1px solid var(--amber-dim);
+  }
+  .subtotal-row.grand-row .subtotal-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px; color: var(--amber);
+  }
+  .subtotal-row.grand-row .subtotal-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; color: var(--amber-bright);
+  }
+
+  /* EXTRAS TABLE */
+  table.extras {
+    width: 100%; border-collapse: collapse;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+  }
+  table.extras th {
+    background: var(--surface3);
+    color: var(--text-dim); font-size: 9px;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 8px 12px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.extras td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.extras td input {
+    background: var(--surface2); border: 1px solid transparent;
+    color: var(--text); font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; padding: 4px 6px; outline: none;
+    width: 80px; transition: border-color 0.1s; text-align: right;
+  }
+  table.extras td input:focus { border-color: var(--amber); }
+  .extras-tag {
+    display: inline-block;
+    background: rgba(74,158,106,0.15);
+    color: var(--green);
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 2px 6px; margin-left: 8px;
+  }
+  .extras-amount { color: var(--green); font-weight: 600; }
+
+  /* NOTICE BOXES */
+  .notice {
+    background: rgba(200,146,42,0.06);
+    border-left: 3px solid var(--amber-dim);
+    padding: 10px 14px;
+    font-size: 11px; color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+
+  /* SAVE/LOAD BUTTONS */
+  #save-btn {
+    background: transparent; color: var(--amber); border: 1px solid var(--amber-dim);
+    font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px;
+    padding: 7px 16px; cursor: pointer; transition: background 0.15s, color 0.15s;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+  #save-btn:hover { background: var(--amber-dim); color: var(--text); }
+  #load-btn {
+    background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+    font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px;
+    padding: 7px 16px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+  #load-btn:hover { border-color: var(--amber-dim); color: var(--amber); }
+  #load-input { display: none; }
+  #autosave-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--amber-dim); transition: background 0.4s; flex-shrink: 0;
+  }
+  #autosave-dot.saved { background: var(--green); }
+  #autosave-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text-muted); letter-spacing: 1px; }
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    background: var(--surface2); border: 1px solid var(--amber-dim);
+    color: var(--text); font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; letter-spacing: 0.5px; padding: 12px 20px;
+    transform: translateY(80px); opacity: 0;
+    transition: transform 0.3s, opacity 0.3s; pointer-events: none; max-width: 320px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--green); }
+  #toast.error   { border-color: var(--red); }
+
+  /* FOOTER */
+
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 1px;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    #totals-bar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .bar-brand { font-size: 18px; margin-right: 0; }
+    .bar-divider { display: none; }
+    .main { padding-top: 90px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- STICKY TOP BAR -->
+<div id="totals-bar">
+  <div class="bar-brand">⬛ PROPLENS INVOICE</div>
+  <div class="bar-divider"></div>
+  <div class="bar-item">
+    <span class="bar-label">Taxable (Days)</span>
+    <span class="bar-value taxable" id="bar-taxable">R 0</span>
+  </div>
+  <div class="bar-divider"></div>
+  <div class="bar-item">
+    <span class="bar-label">PAYE 25% est.</span>
+    <span class="bar-value paye" id="bar-paye">R 0</span>
+  </div>
+  <div class="bar-divider"></div>
+  <div class="bar-item">
+    <span class="bar-label">Extras (Non-tax)</span>
+    <span class="bar-value extras" id="bar-extras">R 0</span>
+  </div>
+  <div class="bar-divider"></div>
+  <div class="bar-item">
+    <span class="bar-label">Grand Total</span>
+    <span class="bar-value grand" id="bar-grand">R 0</span>
+  </div>
+  <div class="bar-spacer"></div>
+  <div style="display:flex;align-items:center;gap:6px;margin-right:12px">
+    <div id="autosave-dot"></div>
+    <span id="autosave-label">AUTOSAVED</span>
+  </div>
+  <button id="save-btn" onclick="saveSession()" title="Save all data as a .cpa file you can reload later">💾 SAVE SESSION</button>
+  <input type="file" id="load-input" accept=".cpa,.json" onchange="loadSession(event)"/>
+  <button id="load-btn" onclick="document.getElementById('load-input').click()" title="Load a previously saved .cpa session file">📂 LOAD SESSION</button>
+  <div class="bar-divider"></div>
+  <button id="export-btn" onclick="exportToExcel()">⬇ EXPORT XLSX</button>
+  <button id="pdf-btn" onclick="exportPDF()">⬇ EXPORT PDF</button>
+</div>
+
+<div class="main">
+
+  <!-- ── SECTION 1: INVOICE PARTIES ── -->
+  <div class="section-head">
+    <div class="section-num">1</div>
+    <div class="section-title">Invoice Parties</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="panel">
+    <div class="grid-2" style="gap:24px">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--amber)">TO — PRODUCTION COMPANY</div>
+          <button onclick="openDirectory('production')" style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1.5px;padding:4px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;" title="Load from directory">📁 DIRECTORY</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="field"><label>Company Name</label><input id="to-name" type="text" placeholder="e.g. Velocity Films"/></div>
+          <div class="field"><label>Company Address</label><input id="to-addr" type="text" placeholder="Street, City, Province"/></div>
+          <div class="grid-2">
+            <div class="field"><label>Reg Number</label><input id="to-reg" type="text" placeholder="e.g. 2021/123456/07"/></div>
+            <div class="field"><label>VAT Number</label><input id="to-vat" type="text" placeholder="e.g. 4123456789"/></div>
+          </div>
+          <div class="field"><label>Job / Production Name</label><input id="job-name" type="text" placeholder="e.g. Takealot TVC 2025"/></div>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--amber)">FROM — CREW MEMBER</div>
+            <button onclick="openDirectory('crew')" style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1.5px;padding:4px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;" title="Load from directory">📁 DIRECTORY</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <div class="field" style="width:140px">
+              <label>Invoice Number</label>
+              <input id="inv-number" type="text" placeholder="Auto-generated"/>
+            </div>
+            <div class="field" style="width:140px">
+              <label>Invoice Date</label>
+              <input id="inv-date" type="date"/>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="grid-2">
+            <div class="field"><label>Full Name</label><input id="from-name" type="text" placeholder="e.g. Marcus Thatcher" oninput="autoInvoiceNumber()"/></div>
+            <div class="field"><label>Designation / Role</label><input id="from-designation" type="text" placeholder="e.g. Prop Master"/></div>
+          </div>
+          <div class="field"><label>Address</label><input id="from-addr" type="text" placeholder="Street, City, Province"/></div>
+          <div class="grid-3">
+            <div class="field"><label>ID / Passport</label><input id="from-id" type="text"/></div>
+            <div class="field"><label>Contact</label><input id="from-contact" type="text"/></div>
+            <div class="field"><label>Tax Number</label><input id="from-tax" type="text"/></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="saveCurrentToDirectory('crew')" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;">💾 SAVE CREW TO DIRECTORY</button>
+      <button onclick="saveCurrentToDirectory('production')" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;">💾 SAVE PRODUCTION TO DIRECTORY</button>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--amber);margin-bottom:12px;">BANKING DETAILS</div>
+      <div class="grid-3">
+        <div class="field"><label>Bank</label><input id="bank-name" type="text" placeholder="e.g. FNB"/></div>
+        <div class="field"><label>Branch Code</label><input id="bank-branch" type="text" placeholder="e.g. 250655"/></div>
+        <div class="field"><label>Account Number</label><input id="bank-acc" type="text"/></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 2: DAILY RATE ── -->
+  <div class="section-head">
+    <div class="section-num">2</div>
+    <div class="section-title">Daily Rate</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="rate-hero">
+    <label>R</label>
+    <input id="daily-rate" type="number" value="2000" min="0" oninput="recalcAll()"/>
+    <div class="derived">
+      Hourly rate (÷10): <span id="hourly-display">R 200</span><br/>
+      <span style="font-size:9px;opacity:0.6" id="base-hrs-label">CPA standard: 1 day = 10 base hours</span>
+    </div>
+    <div id="deal-toggle" style="display:flex;gap:0;margin-left:16px;border:1px solid var(--border);overflow:hidden;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)">
+      <button id="toggle-10" onclick="setBaseHours(10)" style="padding:6px 14px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.5px;border:none;cursor:pointer;background:var(--amber);color:#111;transition:all 0.15s">10 HR</button>
+      <button id="toggle-12" onclick="setBaseHours(12)" style="padding:6px 14px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.5px;border:none;cursor:pointer;background:var(--surface2);color:var(--text-dim);transition:all 0.15s">12 HR DEAL</button>
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: TIMESHEET ── -->
+  <div class="section-head">
+    <div class="section-num">3</div>
+    <div class="section-title">Services Rendered — Timesheet</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="notice">
+    <strong style="color:var(--amber)">CPA OVERTIME RULES:</strong>
+    <strong>10hr standard:</strong> Hrs 1–10 base &nbsp;│&nbsp; Hrs 11–14 (4 OT hrs) ×1.5 &nbsp;│&nbsp; Hrs 15+ ×2.0 &nbsp;│&nbsp;
+    <strong>12hr deal:</strong> Hrs 1–12 base &nbsp;│&nbsp; Hrs 13–14 (2 OT hrs) ×1.5 &nbsp;│&nbsp; Hrs 15–18 (4 OT hrs) ×2.0 &nbsp;│&nbsp;
+    Past midnight on last day = ×3.0 &nbsp;│&nbsp; Hourly rate = Daily Rate ÷ 10 &nbsp;│&nbsp;
+    <strong style="color:var(--warning)">T/A PENALTY:</strong> &lt;10hr turnaround: first 2hrs ×1.0 | next 2hrs ×2.0 | thereafter ×3.0 pro rata hourly
+  </div>
+
+  <div class="ts-wrap" style="margin-top:8px">
+    <table class="ts">
+      <colgroup>
+        <col class="c-date"/><col class="c-desc"/><col class="c-type"/>
+        <col class="c-call"/><col class="c-wrap"/><col class="c-days"/>
+        <col class="c-hrs"/>
+        <col class="c-oth"/><col class="c-otc"/>
+        <col class="c-oth2"/><col class="c-otc2"/>
+        <col class="c-oth3"/><col class="c-otc3"/>
+        <col class="c-tah"/><col class="c-tac"/>
+        <col class="c-amt"/><col class="c-del"/>
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="left" style="min-width:90px">Date</th>
+          <th class="left" style="min-width:140px">Description</th>
+          <th style="min-width:90px">Type</th>
+          <th style="min-width:60px">Call</th>
+          <th style="min-width:60px">Wrap</th>
+          <th style="min-width:40px">Days</th>
+          <th style="min-width:45px">Hrs</th>
+          <th class="group-ot" style="min-width:40px">×1.5 h</th>
+          <th class="group-ot" style="min-width:65px">×1.5 cost</th>
+          <th class="group-ot" style="min-width:40px">×2.0 h</th>
+          <th class="group-ot" style="min-width:65px">×2.0 cost</th>
+          <th class="group-ot" style="min-width:40px">×3.0 h</th>
+          <th class="group-ot" style="min-width:65px">×3.0 cost</th>
+          <th class="group-ta" style="min-width:40px">T/A h</th>
+          <th class="group-ta" style="min-width:65px">T/A cost</th>
+          <th class="group-amt" style="min-width:80px">Amount</th>
+          <th style="min-width:30px"></th>
+        </tr>
+      </thead>
+      <tbody id="ts-body"></tbody>
+    </table>
+    <button class="add-row-btn" onclick="addRow()">+ ADD DAY</button>
+  </div>
+
+  <!-- TAXABLE SUBTOTALS -->
+  <div class="subtotal-block">
+    <div class="subtotal-row" id="st-ta-row" style="display:none;border-left:2px solid var(--warning);padding-left:10px">
+      <div class="subtotal-label" style="color:var(--warning);font-size:11px">
+        T/A Penalties included
+        <span style="font-size:9px;opacity:0.7;margin-left:6px">(<span id="st-ta-days">0</span> violation(s) — charged at ×1.5 pro rata, included in day totals above)</span>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--warning)" id="st-ta-total">R 0</div>
+    </div>
+    <div class="subtotal-row">
+      <div class="subtotal-label">Subtotal — Days Worked (Taxable)</div>
+      <div class="subtotal-value" id="st-taxable">R 0</div>
+    </div>
+    <div class="subtotal-row total-row">
+      <div class="subtotal-label">Total Taxable Income</div>
+      <div class="subtotal-value" id="st-total">R 0</div>
+    </div>
+    <div class="subtotal-row paye-row">
+      <div class="subtotal-label">Deductable PAYE @ 25% <span style="font-size:10px;opacity:0.6">(informational — deducted by production)</span></div>
+      <div class="subtotal-value" id="st-paye">R 0</div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 4: EXTRAS ── -->
+  <div class="section-head">
+    <div class="section-num">4</div>
+    <div class="section-title">Extras — Non-Taxable Allowances</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="panel">
+    <table class="extras">
+      <thead>
+        <tr>
+          <th>Item <span class="extras-tag">Non-Taxable</span></th>
+          <th style="text-align:right;width:100px">Days</th>
+          <th style="text-align:right;width:120px">Rate (R/day)</th>
+          <th style="text-align:right;width:120px">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Toolbox / Kit Rental</td>
+          <td style="text-align:right"><input id="e-toolbox-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-toolbox-rate" type="number" value="250" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right" class="extras-amount" id="e-toolbox-amt">R 0</td>
+        </tr>
+        <tr>
+          <td>Vehicle / Car Allowance</td>
+          <td style="text-align:right"><input id="e-vehicle-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-vehicle-rate" type="number" value="550" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right" class="extras-amount" id="e-vehicle-amt">R 0</td>
+        </tr>
+        <tr>
+          <td>Panel Van / Vehicle Hire</td>
+          <td style="text-align:right"><input id="e-van-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-van-rate" type="number" value="850" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right" class="extras-amount" id="e-van-amt">R 0</td>
+        </tr>
+        <tr>
+          <td>Cell Phone Allowance</td>
+          <td style="text-align:right"><input id="e-cell-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-cell-rate" type="number" value="80" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right" class="extras-amount" id="e-cell-amt">R 0</td>
+        </tr>
+        <tr>
+          <td>Lunches / Meals</td>
+          <td style="text-align:right"><input id="e-meals-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-meals-rate" type="number" value="100" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right" class="extras-amount" id="e-meals-amt">R 0</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;padding:12px 12px 0;gap:40px;align-items:center">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim)">Extras Subtotal</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--green)" id="extras-sub">R 0</div>
+    </div>
+  </div>
+
+  <!-- GRAND TOTAL -->
+  <div class="subtotal-block" style="margin-top:2px">
+    <div class="subtotal-row" style="padding:8px 0">
+      <div class="subtotal-label" style="font-size:10px;color:var(--text-muted)">Taxable Income</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim)" id="gt-taxable">R 0</div>
+    </div>
+    <div class="subtotal-row" style="padding:8px 0">
+      <div class="subtotal-label" style="font-size:10px;color:var(--red)">Less: PAYE 25%</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--red)" id="gt-paye">− R 0</div>
+    </div>
+    <div class="subtotal-row" style="padding:8px 0">
+      <div class="subtotal-label" style="font-size:10px;color:var(--green)">Plus: Non-Taxable Extras</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--green)" id="gt-extras">R 0</div>
+    </div>
+    <div class="subtotal-row grand-row">
+      <div class="subtotal-label">GRAND TOTAL<span style="font-size:10px;letter-spacing:1px;opacity:0.6;margin-left:8px">(NET OF PAYE)</span></div>
+      <div class="subtotal-value" id="grand-total">R 0</div>
+    </div>
+  </div>
+
+  <div class="footer">PROPLENS INVOICE &nbsp;·&nbsp; SOUTH AFRICAN COMMERCIAL PRODUCERS ASSOCIATION RATES &nbsp;·&nbsp; ALL CALCULATIONS PER CPA GUIDELINES</div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+let rows = [];
+let nextId = 1;
+
+const TYPES = ['Shoot Day','Premium Day','Pre-Production','Post-Production','Travel Day'];
+
+function getDailyRate() {
+  return parseFloat(document.getElementById('daily-rate').value) || 0;
+}
+function getBaseHours() {
+  return window._baseHours || 10;
+}
+function getHourlyRate() { return getDailyRate() / 10; } // hourly rate always ÷10 regardless of deal
+
+function setBaseHours(h) {
+  window._baseHours = h;
+  // Update toggle button styles
+  const is12 = h === 12;
+  document.getElementById('toggle-10').style.background  = is12 ? 'var(--surface2)' : 'var(--amber)';
+  document.getElementById('toggle-10').style.color       = is12 ? 'var(--text-dim)'  : '#111';
+  document.getElementById('toggle-12').style.background  = is12 ? 'var(--amber)'     : 'var(--surface2)';
+  document.getElementById('toggle-12').style.color       = is12 ? '#111'             : 'var(--text-dim)';
+  document.getElementById('base-hrs-label').textContent  = is12
+    ? '12-hour deal: OT kicks in after hour 12'
+    : 'CPA standard: 1 day = 10 base hours';
+  recalcAll();
+}
+
+function toMins(timeStr) {
+  if (!timeStr) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// Parse a typed time string into HH:MM snapped to 15-min increments
+// Accepts: "8", "8:0", "08:00", "0800", "8.15", "21:30" etc.
+function parseTimeInput(raw) {
+  if (!raw || !raw.trim()) return null;
+  let str = raw.trim().replace('.', ':').replace(/[^0-9:]/g, '');
+  let h, m;
+  if (str.includes(':')) {
+    [h, m] = str.split(':').map(Number);
+  } else if (str.length <= 2) {
+    h = Number(str); m = 0;
+  } else {
+    // e.g. "0800" or "215" -> split last 2 as minutes
+    h = Number(str.slice(0, -2));
+    m = Number(str.slice(-2));
+  }
+  if (isNaN(h) || isNaN(m)) return null;
+  h = Math.max(0, Math.min(23, h));
+  m = Math.round(m / 15) * 15; // snap to 15
+  if (m === 60) { m = 0; h = Math.min(23, h + 1); }
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+function blurTime(el, rowIdx, field) {
+  const parsed = parseTimeInput(el.value);
+  if (parsed) {
+    el.value = parsed;
+    el.classList.remove('invalid');
+    rows[rowIdx][field] = parsed;
+    recalcAll();
+  } else if (el.value.trim() === '') {
+    el.classList.remove('invalid');
+    rows[rowIdx][field] = '';
+    recalcAll();
+  } else {
+    el.classList.add('invalid');
+  }
+}
+
+function inputTime(el, rowIdx, field) {
+  // Live-update while typing so calculations refresh as user types valid times
+  const parsed = parseTimeInput(el.value);
+  if (parsed) {
+    el.classList.remove('invalid');
+    rows[rowIdx][field] = parsed;
+    recalcAll();
+  }
+}
+
+function calcRow(row) {
+  const dr = getDailyRate();
+  const base = getBaseHours(); // 10 (standard) or 12 (deal) — OT threshold only
+  const hr = dr / 10;    // hourly rate always daily rate ÷ 10
+  const type = row.type;
+
+  if (type === 'Pre-Production' || type === 'Post-Production') {
+    const days = parseFloat(row.days) || 0;
+    const tah = row.tah || 0;
+    const tac = row.tac || 0;
+    return { days, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah, tac, amount: days * dr + tac };
+  }
+  if (type === 'Travel Day') {
+    // CPA: travel day = half (0.5) of standard day rate
+    const days = parseFloat(row.days) || 1;
+    return { days, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: 0, tac: 0, amount: days * dr * 0.5 };
+  }
+  if (type === 'Premium Day') {
+    // CPA: premium day (Sunday / Public Holiday / first night shoot) = 1.5 × daily rate base
+    // Overtime on premium: first 4 OT hrs × (1.5 × hr × 1.5), thereafter × (1.5 × hr × 2)
+    const callM = toMins(row.call);
+    const wrapM = toMins(row.wrap);
+    const premBase = dr * 1.5;
+    const premHr   = premBase / 10; // hourly rate always ÷10
+    if (callM === null || wrapM === null) {
+      return { days: 1, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: row.tah||0, tac: row.tac||0, amount: premBase + (row.tac||0) };
+    }
+    let worked = wrapM - callM;
+    if (worked < 0) worked += 1440;
+    const workedHrs = worked / 60;
+    const premOt15cap = (base === 12) ? 2 : 4;
+    const premOtTotal = Math.max(workedHrs - base, 0);
+    const ot15h = Math.min(premOtTotal, premOt15cap);        // first 2 OT hrs (12hr deal) or 4 (10hr) at ×1.5
+    const ot2h  = Math.max(premOtTotal - premOt15cap, 0);   // beyond ×1.5 bucket at ×2
+    const ot3h  = 0; // triple only applies past midnight on last shoot day — handled separately
+    const ot15c = ot15h * premHr * 1.5;
+    const ot2c  = ot2h  * premHr * 2.0;
+    const ot3c  = 0;
+    const tah = row.tah || 0;
+    const tac = row.tac || 0;
+    const amount = premBase + ot15c + ot2c + tac;
+    return { days: 1, totalHrs: workedHrs, ot15h, ot15c, ot2h, ot2c, ot3h, ot3c, tah, tac, amount, isPremium: true };
+  }
+
+  // Standard Shoot Day
+  // Base = 10 hrs (standard) or 12 hrs (deal).
+  // 10hr standard: first 4 OT hrs at ×1.5, thereafter ×2.
+  // 12hr deal:     first 2 OT hrs at ×1.5, next 4 OT hrs at ×2.
+  // Triple time only if wrap goes past midnight on last shoot day (user flags via checkbox — not auto).
+  const callM = toMins(row.call);
+  const wrapM = toMins(row.wrap);
+  if (callM === null || wrapM === null) {
+    return { days: 1, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: row.tah || 0, tac: row.tac || 0, amount: dr + (row.tac || 0) };
+  }
+
+  let worked = wrapM - callM;
+  if (worked < 0) worked += 1440;
+  const workedHrs = worked / 60;
+
+  // OT bucket sizes differ by deal type:
+  // 10hr standard: 4 hrs at ×1.5 then unlimited ×2
+  // 12hr deal:     2 hrs at ×1.5 then 4 hrs at ×2
+  const ot15cap = (base === 12) ? 2 : 4;  // hours in the ×1.5 bucket
+  const ot2cap  = (base === 12) ? 4 : Infinity; // hours in the ×2 bucket (before triple)
+  const otTotal = Math.max(workedHrs - base, 0);
+  const ot15h = Math.min(otTotal, ot15cap);
+  const ot2h  = Math.min(Math.max(otTotal - ot15cap, 0), ot2cap);
+  const ot3h  = row.pastMidnight ? Math.max(otTotal - ot15cap - ot2cap, 0) : 0; // triple time only if flagged past midnight on last day
+  const ot15c = ot15h * hr * 1.5;
+  const ot2c  = ot2h * hr * 2.0;
+  const ot3c  = ot3h * hr * 3.0;
+  const tah   = row.tah || 0;
+  const tac   = row.tac || 0;
+
+  const amount = dr + ot15c + ot2c + ot3c + tac;
+  return { days: 1, totalHrs: workedHrs, ot15h, ot15c, ot2h, ot2c, ot3h, ot3c, tah, tac, amount };
+}
+
+function calcTurnaround(rows) {
+  // Parse "YYYY-MM-DD" to a day-number (days since epoch) for date comparison
+  function dayNum(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return null;
+    return Math.floor(d.getTime() / 86400000);
+  }
+
+  for (let i = 0; i < rows.length; i++) {
+    rows[i].tah = 0;
+    rows[i].tac = 0;
+    rows[i].taWarn = '';
+    if (!['Shoot Day','Premium Day','Pre-Production','Post-Production'].includes(rows[i].type)) continue;
+    if (!rows[i].call || !rows[i].wrap) continue; // skip if no times entered
+
+    // Find the nearest previous timed day
+    for (let j = i - 1; j >= 0; j--) {
+      if (!['Shoot Day','Premium Day','Pre-Production','Post-Production'].includes(rows[j].type)) continue;
+      if (!rows[j].call || !rows[j].wrap) continue;
+
+      const prevWrapM = toMins(rows[j].wrap);
+      const currCallM = toMins(rows[i].call);
+      if (prevWrapM === null || currCallM === null) break;
+
+      const prevDay = dayNum(rows[j].date);
+      const currDay = dayNum(rows[i].date);
+
+      // If both dates are known, only penalise when the days are consecutive
+      // (i.e. exactly 1 calendar day apart — overnight turnaround).
+      // If there is a full day or more between them, no T/A applies.
+      if (prevDay !== null && currDay !== null) {
+        const dayGap = currDay - prevDay;
+        if (dayGap > 1) break; // full day(s) between shoots — no turnaround issue
+        if (dayGap < 0) break; // rows out of order — skip
+      }
+
+      // Calculate actual gap in minutes across the midnight boundary
+      let gapMins = currCallM - prevWrapM;
+      if (gapMins < 0) gapMins += 1440; // wrapped past midnight
+
+      // If dates are known and curr is same calendar day as prev, the
+      // call is on the same date so the gap is within that day (no overnight).
+      // Only penalise if gap < 10 hours.
+      const gapHrs = gapMins / 60;
+      const hr = getHourlyRate();
+
+      if (gapHrs < 10) {
+        const shortfall = 10 - gapHrs;
+        rows[i].tah = shortfall;
+        // CPA tiered T/A penalty:
+        // First 2 hrs @ 1× pro rata hourly
+        // Next 2 hrs  @ 2× pro rata hourly
+        // Thereafter  @ 3× pro rata hourly
+        const tier1 = Math.min(shortfall, 2);
+        const tier2 = Math.min(Math.max(shortfall - 2, 0), 2);
+        const tier3 = Math.max(shortfall - 4, 0);
+        rows[i].tac = (tier1 * hr * 1) + (tier2 * hr * 2) + (tier3 * hr * 3);
+        rows[i].taWarn = 'T/A';
+      }
+      break;
+    }
+  }
+}
+
+function fmt(n) {
+  if (!n || n === 0) return '—';
+  return 'R ' + n.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmtN(n) {
+  if (!n || n === 0) return '—';
+  return n.toFixed(2);
+}
+
+// ──────────────────────────────────────────────
+// RENDER
+// ──────────────────────────────────────────────
+function renderTable() {
+  calcTurnaround(rows);
+  const tbody = document.getElementById('ts-body');
+  tbody.innerHTML = '';
+
+  rows.forEach((row, i) => {
+    const c = calcRow(row);
+    const isTimeRow = ['Shoot Day','Premium Day','Pre-Production','Post-Production'].includes(row.type);
+    const isFlat = (row.type === 'Travel Day' || (!isTimeRow));
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="left"><input type="date" value="${row.date}" onchange="rows[${i}].date=this.value;recalcAll()"/></td>
+      <td class="left"><input type="text" value="${row.desc}" placeholder="Description" onchange="rows[${i}].desc=this.value;recalcAll()"/></td>
+      <td>
+        <select onchange="rows[${i}].type=this.value;recalcAll()">
+          ${TYPES.map(t => `<option value="${t}" ${t===row.type?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td>${isTimeRow ? `<input class="time-text" value="${row.call||''}" placeholder="08:00" onblur="blurTime(this,${i},'call')"/>` : '<span class="calc-cell">—</span>'}</td>
+      <td>${isTimeRow ? `<input class="time-text" value="${row.wrap||''}" placeholder="17:00" onblur="blurTime(this,${i},'wrap')"/>` : '<span class="calc-cell">—</span>'}</td>
+      <td>${(row.type==='Pre-Production'||row.type==='Post-Production'||row.type==='Travel Day') ? `<input type="number" value="${row.days||1}" min="0" style="width:50px;text-align:center" onchange="rows[${i}].days=this.value;recalcAll()"/>` : '<span class="calc-cell has-value">1</span>'}</td>
+      <td class="calc-cell ${c.totalHrs>0?'has-value':''}">${isTimeRow && c.totalHrs > 0 ? c.totalHrs.toFixed(1)+'h' : '—'}</td>
+      <td class="calc-cell ${c.ot15h>0?'has-value':''}">${c.ot15h > 0 ? c.ot15h.toFixed(2) : '—'}</td>
+      <td class="calc-cell ${c.ot15c>0?'has-value':''}">${c.ot15c > 0 ? fmt(c.ot15c) : '—'}</td>
+      <td class="calc-cell ${c.ot2h>0?'has-value':''}">${c.ot2h > 0 ? c.ot2h.toFixed(2) : '—'}</td>
+      <td class="calc-cell ${c.ot2c>0?'has-value':''}">${c.ot2c > 0 ? fmt(c.ot2c) : '—'}</td>
+      <td class="calc-cell ${c.ot3h>0?'has-value':''}">${c.ot3h > 0 ? c.ot3h.toFixed(2) : '—'}</td>
+      <td class="calc-cell ${c.ot3c>0?'has-value':''}">${c.ot3c > 0 ? fmt(c.ot3c) : '—'}</td>
+      <td class="calc-cell ${c.tah>0?'has-value':''}">${c.tah > 0 ? c.tah.toFixed(2)+'h' : '—'}${row.taWarn ? `<span class="ta-warn">${row.taWarn}</span>` : ''}</td>
+      <td class="calc-cell ${c.tac>0?'has-value':''}">${c.tac > 0 ? fmt(c.tac) : '—'}</td>
+      <td class="calc-cell amount ${c.amount>0?'nonzero':''}">${fmt(c.amount)}</td>
+      <td><button class="del-btn" onclick="delRow(${i})">×</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  recalcTotals();
+}
+
+function addRow() {
+  rows.push({ id: nextId++, date: '', desc: '', type: 'Shoot Day', call: '07:00', wrap: '17:00', days: 1 });
+  renderTable();
+}
+
+function delRow(i) {
+  rows.splice(i, 1);
+  renderTable();
+}
+
+function recalcAll() {
+  triggerAutosave();
+  document.getElementById('hourly-display').textContent = 'R ' + (getDailyRate()/10).toLocaleString('en-ZA', {minimumFractionDigits:0,maximumFractionDigits:2});
+  renderTable();
+}
+
+// Section 4 extras — single source of truth. Add a line here plus a matching
+// <tr> in the extras table and it flows through totals, save, XLSX and PDF.
+// State keys are `${key}Days` / `${key}Rate`.
+const EXTRA_ITEMS = [
+  { key: 'toolbox', label: 'Toolbox / Kit Rental' },
+  { key: 'vehicle', label: 'Vehicle / Car Allowance' },
+  { key: 'van',     label: 'Panel Van / Vehicle Hire' },
+  { key: 'cell',    label: 'Cell Phone Allowance' },
+  { key: 'meals',   label: 'Lunches / Meals' },
+];
+
+function recalcExtras() {
+  triggerAutosave();
+  let extrasTotal = 0;
+  EXTRA_ITEMS.forEach(({key: k}) => {
+    const d = parseFloat(document.getElementById(`e-${k}-days`).value) || 0;
+    const r = parseFloat(document.getElementById(`e-${k}-rate`).value) || 0;
+    const amt = d * r;
+    extrasTotal += amt;
+    document.getElementById(`e-${k}-amt`).textContent = amt > 0 ? fmt(amt) : 'R 0';
+  });
+  document.getElementById('extras-sub').textContent = fmt(extrasTotal) === '—' ? 'R 0' : fmt(extrasTotal);
+  recalcTotals();
+}
+
+function recalcTotals() {
+  calcTurnaround(rows);
+  let taxable = 0;
+  let taTotal = 0;
+  let taCount = 0;
+  rows.forEach(r => {
+    const c = calcRow(r);
+    taxable += c.amount;
+    if (r.tac > 0) { taTotal += r.tac; taCount++; }
+  });
+  // Show/hide T/A summary row
+  const taRow = document.getElementById('st-ta-row');
+  if (taRow) {
+    if (taTotal > 0) {
+      taRow.style.display = 'flex';
+      document.getElementById('st-ta-total').textContent = 'R ' + Math.round(taTotal).toLocaleString('en-ZA');
+      document.getElementById('st-ta-days').textContent = taCount;
+    } else {
+      taRow.style.display = 'none';
+    }
+  }
+  const paye = taxable * 0.25;
+  const extras = getExtrasTotal();
+  // CPA: Grand Total = (taxable - PAYE) + non-taxable extras
+  const grand = (taxable - paye) + extras;
+
+  const fmtR = n => 'R ' + Math.round(n).toLocaleString('en-ZA');
+  document.getElementById('st-taxable').textContent = fmtR(taxable);
+  document.getElementById('st-total').textContent = fmtR(taxable);
+  document.getElementById('st-paye').textContent = fmtR(paye);
+  document.getElementById('grand-total').textContent = fmtR(grand);
+  document.getElementById('bar-taxable').textContent = fmtR(taxable);
+  document.getElementById('bar-paye').textContent = fmtR(paye);
+  document.getElementById('bar-extras').textContent = fmtR(extras);
+  document.getElementById('bar-grand').textContent = fmtR(grand);
+  if(document.getElementById('gt-taxable')) document.getElementById('gt-taxable').textContent = fmtR(taxable);
+  if(document.getElementById('gt-paye'))    document.getElementById('gt-paye').textContent    = '− ' + fmtR(paye);
+  if(document.getElementById('gt-extras'))  document.getElementById('gt-extras').textContent  = fmtR(extras);
+}
+
+function getExtrasTotal() {
+  let t = 0;
+  EXTRA_ITEMS.forEach(({key: k}) => {
+    t += (parseFloat(document.getElementById(`e-${k}-days`).value)||0) *
+         (parseFloat(document.getElementById(`e-${k}-rate`).value)||0);
+  });
+  return t;
+}
+
+// ──────────────────────────────────────────────
+// XLSX EXPORT — light skin, mirrors app layout
+// ──────────────────────────────────────────────
+function v(id) { return document.getElementById(id)?.value || ''; }
+
+const XL = {
+  WHITE:'FFFFFFFF', OFF_WHITE:'FFFAFAF8', ROW_ALT:'FFF5F3EF',
+  BORDER:'FFD8D0C0', TEXT:'FF1A1A1A', TEXT_DIM:'FF666058', TEXT_MUTED:'FF999088',
+  AMBER:'FFC8921A', AMBER_DARK:'FF8B6010', AMBER_BG:'FFFFF8EC',
+  AMBER_MID:'FFFDE8C0', AMBER_BANNER:'FFFFE5A0',
+  SECTION_BG:'FF2A2A2A', SECTION_FG:'FFE8A830',
+  OT_HEAD_BG:'FFFFF3D0', OT_HEAD_FG:'FF8B6010', OT_CELL_BG:'FFFFFDF5',
+  TA_HEAD_BG:'FFFFF0C0', TA_HEAD_FG:'FF7D5800', TA_CELL_BG:'FFFFFCE8',
+  GREEN_BG:'FFF0FAF4', GREEN_HEAD:'FFD8F0E4', GREEN_FG:'FF1E6B3A',
+  SUB_BG:'FFF8F4EC', TOTAL_BG:'FFFDE8C0',
+  GRAND_BG:'FFC8921A', GRAND_FG:'FFFFFFFF',
+  PAYE_BG:'FFFDECEA', PAYE_FG:'FFC04040',
+  WARN_BG:'FFFFF3CD', WARN_FG:'FF7D5800',
+};
+
+function cellStyle(opts={}) {
+  const fill = opts.bgColor ? {patternType:'solid',fgColor:{rgb:opts.bgColor}} : undefined;
+  const font = {name:opts.font||'Calibri',sz:opts.sz||10,bold:!!opts.bold,italic:!!opts.italic,color:{rgb:opts.color||XL.TEXT}};
+  const alignment = {horizontal:opts.align||'left',vertical:opts.valign||'center',wrapText:!!opts.wrap,indent:opts.indent||0};
+  let border;
+  if (opts.border==='all') {
+    const bs={style:'thin',color:{rgb:XL.BORDER}};
+    border={top:bs,bottom:bs,left:bs,right:bs};
+  } else if (opts.border==='outer') {
+    const bs={style:'medium',color:{rgb:XL.BORDER}};
+    border={top:bs,bottom:bs,left:bs,right:bs};
+  } else if (opts.borderBottom) {
+    border={bottom:{style:opts.borderBottom,color:{rgb:opts.borderColor||XL.AMBER}}};
+  } else if (opts.borderTop) {
+    border={top:{style:opts.borderTop,color:{rgb:opts.borderColor||XL.AMBER}}};
+  }
+  const r={font,alignment};
+  if(fill) r.fill=fill;
+  if(border) r.border=border;
+  if(opts.numFmt) r.numFmt=opts.numFmt;
+  return r;
+}
+
+function sc(ws,addr,value,opts={}) {
+  if(!ws[addr]) ws[addr]={};
+  if(typeof value==='string' && value.startsWith('=')) {
+    ws[addr].f=value.slice(1); // formula (strip leading =)
+    ws[addr].t='n';
+    ws[addr].v=0; // placeholder, Excel recalculates
+  } else {
+    ws[addr].v=value;
+    ws[addr].t=typeof value==='number'?'n':'s';
+  }
+  ws[addr].s=cellStyle(opts);
+}
+
+function fillRow(ws,R,N,opts={}) { for(let c=0;c<N;c++) sc(ws,`${cL(c)}${R}`,'',opts); }
+function cL(n) { return n<26?String.fromCharCode(65+n):'A'+String.fromCharCode(65+n-26); }
+function mR(merges,r,c1,c2) { merges.push({s:{r:r-1,c:c1},e:{r:r-1,c:c2}}); }
+
+function exportToExcel() {
+  const wb=XLSX.utils.book_new();
+  const ws={};
+  const dr=getDailyRate();
+  const crewName=v('from-name')||'Crew';
+  const jobName=v('job-name')||'Production';
+  const invDate=v('inv-date')||new Date().toISOString().split('T')[0];
+  const NCOLS=13;
+  const merges=[];
+  const rowH=[];
+  let R=1;
+
+  const lbl={color:XL.TEXT_MUTED,sz:9,align:'right',indent:1};
+  const val={color:XL.TEXT,sz:10,bold:true,align:'left',indent:1};
+
+  // ── TITLE BANNER ──
+  rowH[R-1]={hpt:36};
+  sc(ws,`A${R}`,'PROPLENS INVOICE',{bgColor:XL.SECTION_BG,color:XL.SECTION_FG,sz:20,bold:true,align:'center'});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.SECTION_BG});
+  mR(merges,R,0,NCOLS-1); R++;
+
+  rowH[R-1]={hpt:14};
+  sc(ws,`A${R}`,'COMMERCIAL PRODUCERS ASSOCIATION OF SOUTH AFRICA  ·  ALL RATES PER CPA GUIDELINES',{bgColor:XL.AMBER_BANNER,color:XL.AMBER_DARK,sz:8,italic:true,align:'center'});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_BANNER});
+  mR(merges,R,0,NCOLS-1); R++;
+
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+
+  // ── PARTIES ──
+  rowH[R-1]={hpt:16};
+  sc(ws,`A${R}`,'INVOICE TO',{bgColor:XL.SECTION_BG,color:XL.SECTION_FG,sz:9,bold:true,indent:1});
+  for(let c=1;c<5;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.SECTION_BG});
+  sc(ws,`F${R}`,'',{bgColor:XL.WHITE});
+  sc(ws,`G${R}`,'INVOICE FROM',{bgColor:XL.SECTION_BG,color:XL.SECTION_FG,sz:9,bold:true,indent:1});
+  for(let c=7;c<12;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.SECTION_BG});
+  const invNum = v('inv-number') || '';
+  sc(ws,`L${R}`,'INV NO.',{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:8,bold:true,align:'right'});
+  sc(ws,`M${R}`,invNum||invDate,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:9,bold:true,align:'center'});
+  R++;
+
+  const toData=[['Company',v('to-name')],['Address',v('to-addr')],['Reg No.',v('to-reg')],['VAT No.',v('to-vat')],['Job / Prod.',v('job-name')]];
+  const fromData=[['Name',v('from-name')],['Designation',v('from-designation')],['Address',v('from-addr')],['ID/Passport',v('from-id')],['Contact',v('from-contact')],['Tax No.',v('from-tax')]];
+  const maxP=Math.max(toData.length,fromData.length);
+  for(let i=0;i<maxP;i++) {
+    rowH[R-1]={hpt:15};
+    const bg=i%2===0?XL.AMBER_BG:XL.WHITE;
+    const bgR=i%2===0?XL.OFF_WHITE:XL.WHITE;
+    if(toData[i]){sc(ws,`A${R}`,toData[i][0],{...lbl,bgColor:bg});sc(ws,`B${R}`,toData[i][1],{...val,bgColor:bg});for(let c=2;c<5;c++)sc(ws,`${cL(c)}${R}`,'',{bgColor:bg});}
+    else{for(let c=0;c<5;c++)sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.WHITE});}
+    sc(ws,`F${R}`,'',{bgColor:XL.WHITE});
+    if(fromData[i]){sc(ws,`G${R}`,fromData[i][0],{...lbl,bgColor:bgR});sc(ws,`H${R}`,fromData[i][1],{...val,bgColor:bgR});for(let c=8;c<12;c++)sc(ws,`${cL(c)}${R}`,'',{bgColor:bgR});}
+    else{for(let c=6;c<12;c++)sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.WHITE});}
+    sc(ws,`L${R}`,'',{bgColor:XL.WHITE});sc(ws,`M${R}`,'',{bgColor:XL.WHITE});
+    R++;
+  }
+
+  // ── BANKING ──
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+  rowH[R-1]={hpt:16};
+  sc(ws,`A${R}`,'BANKING DETAILS',{bgColor:XL.SECTION_BG,color:XL.SECTION_FG,sz:9,bold:true,indent:1});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.SECTION_BG});
+  R++;
+  [['Bank',v('bank-name')],['Branch Code',v('bank-branch')],['Account Number',v('bank-acc')]].forEach((br,i)=>{
+    rowH[R-1]={hpt:15};
+    const bg=i%2===0?XL.AMBER_BG:XL.WHITE;
+    sc(ws,`A${R}`,br[0],{...lbl,bgColor:bg});sc(ws,`B${R}`,br[1],{...val,bgColor:bg});
+    for(let c=2;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.WHITE}); R++;
+  });
+
+  // ── DAILY RATE ──
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+  rowH[R-1]={hpt:22};
+  sc(ws,`A${R}`,'DAILY RATE',{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:9,bold:true,align:'right',indent:1});
+  sc(ws,`B${R}`,dr,{bgColor:XL.AMBER,color:XL.WHITE,sz:14,bold:true,align:'center',numFmt:'"R "#,##0'});
+  const baseHrs = getBaseHours();
+  sc(ws,`C${R}`,'Hourly: R'+(dr/10).toFixed(2)+'  (÷10 — OT kicks in after hr '+baseHrs+(baseHrs===12?' — 12hr deal':'')+')' ,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:9,italic:true});
+  for(let c=3;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_MID});
+  mR(merges,R,3,NCOLS-1); R++;
+
+  // ── SERVICES RENDERED ──
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+  rowH[R-1]={hpt:18};
+  sc(ws,`A${R}`,'SERVICES RENDERED — TIMESHEET',{bgColor:XL.SECTION_BG,color:XL.SECTION_FG,sz:11,bold:true,indent:1});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.SECTION_BG});
+  mR(merges,R,0,NCOLS-1); R++;
+
+  // Column headers
+  rowH[R-1]={hpt:28};
+  const hdrs=['DATE','DESCRIPTION','DAYS','x1.5 HRS','x1.5 COST','x2.0 HRS','x2.0 COST','x3.0 HRS','x3.0 COST','T/A HRS','T/A COST','T/A','AMOUNT'];
+  const grps=[null,null,null,'ot','ot','ot','ot','ot','ot','ta','ta','ta','amt'];
+  hdrs.forEach((h,i)=>{
+    const g=grps[i];
+    const bg=g==='ot'?XL.OT_HEAD_BG:g==='ta'?XL.TA_HEAD_BG:g==='amt'?XL.SECTION_BG:XL.ROW_ALT||'FFF5F3EF';
+    const fg=g==='ot'?XL.OT_HEAD_FG:g==='ta'?XL.TA_HEAD_FG:g==='amt'?XL.SECTION_FG:XL.TEXT_DIM;
+    sc(ws,`${cL(i)}${R}`,h,{bgColor:bg,color:fg,sz:9,bold:true,align:i<=1?'left':'center',indent:i<=1?1:0,border:'all',wrap:true});
+  }); R++;
+
+  // Data rows — with Excel formulas
+  // Col mapping: A=date B=desc C=days D=ot15h E=ot15c F=ot2h G=ot2c H=ot3h I=ot3c J=tah K=tac L=taWarn M=amount
+  // Daily rate is in cell B (daily-rate row) — we reference it by row number
+  const drRow = R - 4; // row where daily rate label is (we placed it earlier)
+  // Actually we'll just embed the daily rate value in formulas directly for reliability
+  const drVal = dr; // numeric daily rate value — embedded in formulas
+  const hrVal = dr / 10; // hourly rate always ÷10
+
+  calcTurnaround(rows);
+  const firstDataRow = R;
+  const lastDataRow  = R + rows.length - 1;
+
+  rows.forEach((row,ri)=>{
+    const c=calcRow(row);
+    const warn=row.taWarn;
+    rowH[R-1]={hpt:16};
+    const rowBg=ri%2===0?XL.WHITE:XL.ROW_ALT||'FFF5F3EF';
+
+    // ── Columns A–C: date, description, days (static text/number) ──
+    sc(ws,`A${R}`,row.date||'',{bgColor:rowBg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
+    sc(ws,`B${R}`,row.desc||row.type||'',{bgColor:rowBg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
+    sc(ws,`C${R}`,c.days,{bgColor:rowBg,color:XL.TEXT,sz:10,align:'center',border:'all'});
+
+    // ── OT columns D–I with formulas ──
+    const isTimeRow = row.type==='Shoot Day';
+    const base = getBaseHours();
+
+    if(isTimeRow && row.call && row.wrap) {
+      // We embed the worked hours calc as Excel formula using TIME values
+      // workedHrs = if wrap<call then wrap+24-call else wrap-call (in hours)
+      const [ch,cm] = row.call.split(':').map(Number);
+      const [wh,wm] = row.wrap.split(':').map(Number);
+      const callDec = ch + cm/60;
+      const wrapDec = wh + wm/60;
+      // workedHrs as Excel formula
+      const wHrs = wrapDec < callDec
+        ? `(${wrapDec}+24-${callDec})`
+        : `(${wrapDec}-${callDec})`;
+
+      // ×1.5 hours: MIN(MAX(worked-base,0),4)
+      const f15h = `=MIN(MAX(${wHrs}-${base},0),4)`;
+      // ×2.0 hours: MAX(worked-(base+4),0)
+      const f2h  = `=MAX(${wHrs}-(${base}+4),0)`;
+      // ×1.5 cost
+      const f15c = `=D${R}*${hrVal}*1.5`;
+      // ×2.0 cost
+      const f2c  = `=F${R}*${hrVal}*2`;
+      // ×3.0 (only if pastMidnight — embed static for now)
+      const ot3h = c.ot3h||0;
+      const ot3c = c.ot3c||0;
+
+      const isZero15 = c.ot15h===0;
+      const isZero2  = c.ot2h===0;
+
+      sc(ws,`D${R}`,f15h,{bgColor:isZero15?rowBg:XL.OT_CELL_BG,color:isZero15?XL.TEXT_MUTED:XL.OT_HEAD_FG,sz:10,align:'center',numFmt:'0.00',border:'all'});
+      sc(ws,`E${R}`,f15c,{bgColor:isZero15?rowBg:XL.OT_CELL_BG,color:isZero15?XL.TEXT_MUTED:XL.OT_HEAD_FG,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
+      sc(ws,`F${R}`,f2h, {bgColor:isZero2?rowBg:XL.OT_CELL_BG, color:isZero2?XL.TEXT_MUTED:XL.OT_HEAD_FG, sz:10,align:'center',numFmt:'0.00',border:'all'});
+      sc(ws,`G${R}`,f2c, {bgColor:isZero2?rowBg:XL.OT_CELL_BG, color:isZero2?XL.TEXT_MUTED:XL.OT_HEAD_FG, sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
+      sc(ws,`H${R}`,ot3h,{bgColor:rowBg,color:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'0.00',border:'all'});
+      sc(ws,`I${R}`,ot3c,{bgColor:rowBg,color:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
+    } else {
+      // Non-time rows — no OT
+      ['D','E','F','G','H','I'].forEach(col=>{
+        sc(ws,`${col}${R}`,'—',{bgColor:rowBg,color:XL.TEXT_MUTED,sz:10,align:'center',border:'all'});
+      });
+    }
+
+    // ── T/A columns J–L ──
+    const tah = c.tah||0;
+    const tac = c.tac||0;
+    sc(ws,`J${R}`,tah,{bgColor:tah>0?XL.TA_CELL_BG:rowBg,color:tah>0?XL.TA_HEAD_FG:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'0.00',border:'all'});
+    sc(ws,`K${R}`,tac,{bgColor:tac>0?XL.TA_CELL_BG:rowBg,color:tac>0?XL.TA_HEAD_FG:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
+    sc(ws,`L${R}`,warn||'',{bgColor:warn?XL.WARN_BG:rowBg,color:warn?XL.WARN_FG:XL.TEXT_MUTED,sz:9,bold:!!warn,align:'center',border:'all'});
+
+    // ── Amount column M — formula ──
+    const isTimeRowAmt = row.type==='Shoot Day' && row.call && row.wrap;
+    let amtFormula;
+    if(row.type==='Pre-Production'||row.type==='Post-Production') {
+      amtFormula = `=C${R}*${drVal}`; // days × daily rate
+    } else if(row.type==='Travel Day') {
+      amtFormula = `=C${R}*${drVal}*0.5`;
+    } else if(row.type==='Premium Day') {
+      amtFormula = `=${drVal}*1.5+E${R}+G${R}+I${R}+K${R}`;
+    } else if(isTimeRowAmt) {
+      amtFormula = `=${drVal}+E${R}+G${R}+I${R}+K${R}`; // base + OT costs + T/A
+    } else {
+      amtFormula = `=C${R}*${drVal}`;
+    }
+    const amtIsZero = c.amount===0;
+    sc(ws,`M${R}`,amtFormula,{bgColor:XL.AMBER_BG,color:amtIsZero?XL.TEXT_MUTED:XL.AMBER_DARK,sz:11,bold:!amtIsZero,align:'right',numFmt:'"R "#,##0',border:'all'});
+
+    R++;
+  });
+
+  // ── Totals with SUM formulas ─────────────────────────────────────────────
+  let taTotal=0, taCount=0;
+  rows.forEach(r=>{ if(r.tac>0){taTotal+=r.tac;taCount++;} });
+
+  if(taTotal>0){
+    rowH[R-1]={hpt:15}; fillRow(ws,R,NCOLS,{bgColor:'FFFFFDF5'});
+    sc(ws,`J${R}`,'T/A Penalties ('+taCount+' violation'+(taCount>1?'s':'')+')',{bgColor:'FFFFFDF5',color:XL.WARN_FG,sz:9,italic:true,align:'right'});
+    sc(ws,`M${R}`,`=SUM(K${firstDataRow}:K${lastDataRow})`,{bgColor:XL.WARN_BG,color:XL.WARN_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+    mR(merges,R,9,11); R++;
+  }
+
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+
+  const subtotalRow = R;
+  rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.SUB_BG});
+  sc(ws,`K${R}`,'SUBTOTAL — TAXABLE',{bgColor:XL.SUB_BG,color:XL.TEXT_DIM,sz:9,align:'right'});
+  sc(ws,`M${R}`,`=SUM(M${firstDataRow}:M${lastDataRow})`,{bgColor:XL.SUB_BG,color:XL.AMBER_DARK,sz:11,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  mR(merges,R,10,11); R++;
+
+  const totalRow = R;
+  rowH[R-1]={hpt:20}; fillRow(ws,R,NCOLS,{bgColor:XL.TOTAL_BG});
+  sc(ws,`K${R}`,'TOTAL TAXABLE',{bgColor:XL.TOTAL_BG,color:XL.AMBER_DARK,sz:10,bold:true,align:'right'});
+  sc(ws,`M${R}`,`=M${subtotalRow}`,{bgColor:XL.AMBER,color:XL.WHITE,sz:13,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  mR(merges,R,10,11); R++;
+
+  const payeRow = R;
+  rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.PAYE_BG});
+  sc(ws,`K${R}`,'Less: PAYE 25%',{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:9,italic:true,align:'right'});
+  sc(ws,`M${R}`,`=M${totalRow}*0.25`,{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  mR(merges,R,10,11); R++;
+
+  const netRow = R;
+  rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.SUB_BG});
+  sc(ws,`K${R}`,'Net Taxable (after PAYE)',{bgColor:XL.SUB_BG,color:XL.TEXT_DIM,sz:9,align:'right'});
+  sc(ws,`M${R}`,`=M${totalRow}-M${payeRow}`,{bgColor:XL.SUB_BG,color:XL.TEXT,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  mR(merges,R,10,11); R++;
+
+  const taxable = rows.reduce((s,row)=>s+calcRow(row).amount,0); // still needed for extras note
+
+  // Extras
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+  rowH[R-1]={hpt:18};
+  sc(ws,`A${R}`,'EXTRAS — NON-TAXABLE ALLOWANCES',{bgColor:XL.SECTION_BG,color:XL.SECTION_FG,sz:11,bold:true,indent:1});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.SECTION_BG});
+  mR(merges,R,0,NCOLS-1); R++;
+
+  rowH[R-1]={hpt:16};
+  ['ITEM','','DAYS','','RATE (R/day)','','','','','','','','AMOUNT'].forEach((h,ci)=>{
+    sc(ws,`${cL(ci)}${R}`,h,{bgColor:XL.GREEN_HEAD,color:XL.GREEN_FG,sz:9,bold:true,align:ci===0?'left':ci===12?'right':'center',indent:ci===0?1:0,border:'all'});
+  });
+  mR(merges,R,0,1); mR(merges,R,2,3); mR(merges,R,4,11); R++;
+
+  const extItems=EXTRA_ITEMS.map(it=>({
+    label:it.label, days:v(`e-${it.key}-days`), rate:v(`e-${it.key}-rate`)
+  }));
+  let extTotal=0;
+  const firstExtRow = R;
+  extItems.forEach((e,ei)=>{
+    const d=parseFloat(e.days)||0,r=parseFloat(e.rate)||0,a=d*r;
+    extTotal+=a;
+    rowH[R-1]={hpt:16};
+    const bg=ei%2===0?XL.GREEN_BG:XL.WHITE;
+    fillRow(ws,R,NCOLS,{bgColor:bg,border:'all'});
+    sc(ws,`A${R}`,e.label,{bgColor:bg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
+    sc(ws,`C${R}`,d,{bgColor:bg,color:d>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',border:'all'});
+    sc(ws,`E${R}`,r,{bgColor:bg,color:r>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
+    sc(ws,`M${R}`,`=C${R}*E${R}`,{bgColor:bg,color:a>0?XL.GREEN_FG:XL.TEXT_MUTED,sz:10,bold:a>0,align:'right',numFmt:'"R "#,##0',border:'all'});
+    mR(merges,R,0,1); mR(merges,R,2,3); mR(merges,R,4,11); R++;
+  });
+  const lastExtRow = R - 1;
+  const extSubRow = R;
+
+  rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.GREEN_HEAD});
+  sc(ws,`K${R}`,'EXTRAS SUBTOTAL',{bgColor:XL.GREEN_HEAD,color:XL.GREEN_FG,sz:9,bold:true,align:'right'});
+  sc(ws,`M${R}`,`=SUM(M${firstExtRow}:M${lastExtRow})`,{bgColor:XL.GREEN_HEAD,color:XL.GREEN_FG,sz:11,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  mR(merges,R,10,11); R++;
+
+  // Grand Total — formula referencing net taxable + extras subtotal
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+  rowH[R-1]={hpt:32};
+  sc(ws,`A${R}`,'GRAND TOTAL',{bgColor:XL.GRAND_BG,color:XL.GRAND_FG,sz:16,bold:true,align:'left',indent:1});
+  for(let c=1;c<12;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.GRAND_BG});
+  sc(ws,`M${R}`,`=M${netRow}+M${extSubRow}`,{bgColor:XL.GRAND_BG,color:XL.GRAND_FG,sz:16,bold:true,align:'right',numFmt:'"R "#,##0'});
+  mR(merges,R,0,11); R++;
+
+  const grandRow = R - 1;
+  rowH[R-1]={hpt:13};
+  const grand=(taxable-taxable*0.25)+extTotal;
+  const noteText='Net Taxable R'+Math.round(taxable*0.75).toLocaleString()+' + Non-Taxable Extras R'+Math.round(extTotal).toLocaleString();
+  sc(ws,`A${R}`,noteText,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:8,italic:true,align:'left',indent:1});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_MID});
+  mR(merges,R,0,NCOLS-1); R++;
+
+  rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
+  rowH[R-1]={hpt:14};
+  sc(ws,`A${R}`,'CPA Guidelines: Standard day = 10hrs. OT hrs 11-14 x1.5, hrs 15+ x2.0. T/A penalty: first 2hrs x1, next 2hrs x2, thereafter x3 pro rata. PAYE deducted by production.',{bgColor:XL.OFF_WHITE,color:XL.TEXT_MUTED,sz:8,italic:true,indent:1});
+  for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.OFF_WHITE});
+  mR(merges,R,0,NCOLS-1); R++;
+
+  ws['!ref']=`A1:${cL(NCOLS-1)}${R}`;
+  ws['!merges']=merges;
+  ws['!rows']=rowH;
+  ws['!cols']=[{wch:13},{wch:26},{wch:6},{wch:7},{wch:11},{wch:7},{wch:11},{wch:7},{wch:11},{wch:7},{wch:11},{wch:6},{wch:13}];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
+  const fname = `INV_${crewName.replace(/\s+/g,'_')}_${jobName.replace(/\s+/g,'_')}_${invDate}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
+
+// ──────────────────────────────────────────────
+// TOAST
+// ──────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  const icon = type === 'success' ? '✓ ' : type === 'error' ? '✕ ' : 'ℹ ';
+  t.className = '';
+  t.querySelector('#toast-icon').textContent = icon;
+  t.querySelector('#toast-msg').textContent = msg;
+  t.classList.add('show', type);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ──────────────────────────────────────────────
+// AUTOSAVE to localStorage
+// ──────────────────────────────────────────────
+let autosaveTimer = null;
+function triggerAutosave() {
+  clearTimeout(autosaveTimer);
+  document.getElementById('autosave-dot').classList.remove('saved');
+  autosaveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem('cpa_invoice_autosave', JSON.stringify(gatherState()));
+      document.getElementById('autosave-dot').classList.add('saved');
+    } catch(e) {}
+  }, 1200);
+}
+
+// ──────────────────────────────────────────────
+// GATHER ALL FORM STATE
+// ──────────────────────────────────────────────
+function gatherState() {
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    header: {
+      toName:    document.getElementById('to-name').value,
+      toAddr:    document.getElementById('to-addr').value,
+      toReg:     document.getElementById('to-reg').value,
+      toVat:     document.getElementById('to-vat').value,
+      jobName:   document.getElementById('job-name').value,
+      invDate:   document.getElementById('inv-date').value,
+      fromName:        document.getElementById('from-name').value,
+      fromDesignation: document.getElementById('from-designation').value,
+      fromAddr:        document.getElementById('from-addr').value,
+      fromId:          document.getElementById('from-id').value,
+      fromContact:     document.getElementById('from-contact').value,
+      fromTax:         document.getElementById('from-tax').value,
+      invNumber:       document.getElementById('inv-number').value,
+      bankName:  document.getElementById('bank-name').value,
+      bankBranch:document.getElementById('bank-branch').value,
+      bankAcc:   document.getElementById('bank-acc').value,
+    },
+    dailyRate: document.getElementById('daily-rate').value,
+      baseHours: getBaseHours(),
+    rows: rows,
+    extras: EXTRA_ITEMS.reduce((o, it) => {
+      o[it.key + 'Days'] = document.getElementById(`e-${it.key}-days`).value;
+      o[it.key + 'Rate'] = document.getElementById(`e-${it.key}-rate`).value;
+      return o;
+    }, {})
+  };
+}
+
+// ──────────────────────────────────────────────
+// RESTORE STATE
+// ──────────────────────────────────────────────
+function applyState(state) {
+  const h = state.header || {};
+  const fields = {
+    'to-name': h.toName, 'to-addr': h.toAddr, 'to-reg': h.toReg, 'to-vat': h.toVat,
+    'job-name': h.jobName, 'inv-date': h.invDate,
+    'from-name': h.fromName, 'from-designation': h.fromDesignation, 'from-addr': h.fromAddr,
+    'from-id': h.fromId, 'from-contact': h.fromContact, 'from-tax': h.fromTax,
+    'inv-number': h.invNumber,
+    'bank-name': h.bankName, 'bank-branch': h.bankBranch, 'bank-acc': h.bankAcc,
+    'daily-rate': state.dailyRate,
+  };
+  EXTRA_ITEMS.forEach(it => {
+    fields[`e-${it.key}-days`] = state.extras?.[it.key + 'Days'];
+    fields[`e-${it.key}-rate`] = state.extras?.[it.key + 'Rate'];
+  });
+  Object.entries(fields).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+  });
+  rows = (state.rows || []).map(r => ({ ...r }));
+  nextId = rows.length ? Math.max(...rows.map(r => r.id || 0)) + 1 : 1;
+  if (state.baseHours) setBaseHours(state.baseHours);
+  renderTable();
+  recalcExtras();
+}
+
+// ──────────────────────────────────────────────
+// SAVE SESSION → .cpa file
+// ──────────────────────────────────────────────
+async function saveSession() {
+  const state    = gatherState();
+  const crewName = state.header.fromName || 'Crew';
+  const jobName  = state.header.jobName  || 'Production';
+  const dateStr  = state.header.invDate  || new Date().toISOString().split('T')[0];
+  const json     = JSON.stringify(state, null, 2);
+  const clean    = s => s.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
+  const fname    = `${clean(jobName)}_${clean(crewName)}_${dateStr}.cpa`;
+
+  // Use File System Access API (Chrome/Edge) for a Save As picker
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fname,
+        types: [{ description: 'CPA Session File', accept: { 'application/json': ['.cpa'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      document.getElementById('autosave-dot').classList.add('saved');
+      showToast('Session saved to ' + handle.name, 'success');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled — do nothing
+      // Any other error: fall through to download fallback
+    }
+  }
+
+  // Fallback for Firefox / Safari — standard download to Downloads folder
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById('autosave-dot').classList.add('saved');
+  showToast('Session saved — reload any time with Load Session', 'success');
+}
+
+// ──────────────────────────────────────────────
+// LOAD SESSION ← .cpa file
+// ──────────────────────────────────────────────
+function loadSession(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const state = JSON.parse(e.target.result);
+      if (!state.version || !state.header) throw new Error('Invalid file');
+      applyState(state);
+      const savedAt = state.savedAt ? new Date(state.savedAt).toLocaleString() : 'unknown time';
+      showToast(`Session loaded — saved ${savedAt}`, 'success');
+    } catch(err) {
+      showToast('Could not load file — is it a valid .cpa session?', 'error');
+    }
+  };
+  reader.readAsText(file);
+  // reset so same file can be reloaded
+  event.target.value = '';
+}
+
+// ──────────────────────────────────────────────
+// INVOICE NUMBER — auto-generate from crew + date + job
+// Format: INV-[INITIALS]-[YYYYMMDD]-[JOB3]
+// e.g. INV-MT-20250715-VEL
+// ──────────────────────────────────────────────
+function autoInvoiceNumber() {
+  const existing = document.getElementById('inv-number').value;
+  // Don't overwrite if user has manually typed something
+  if (existing && !existing.startsWith('INV-')) return;
+  generateInvoiceNumber();
+}
+
+function generateInvoiceNumber() {
+  const name    = document.getElementById('from-name').value.trim();
+  const date    = document.getElementById('inv-date').value  || new Date().toISOString().split('T')[0];
+  const job     = document.getElementById('job-name').value.trim();
+
+  // Initials from crew name (up to 3 chars)
+  const initials = name
+    ? name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0,3)
+    : 'XX';
+
+  // Date compact YYYYMMDD
+  const datePart = date.replace(/-/g,'');
+
+  // Job abbreviation — first 3 uppercase letters of first word
+  const jobPart = job
+    ? job.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/)[0].toUpperCase().slice(0,3)
+    : 'INV';
+
+  document.getElementById('inv-number').value = `INV-${initials}-${datePart}-${jobPart}`;
+}
+
+// ──────────────────────────────────────────────
+// DIRECTORY — localStorage CRUD
+// Keys: cpa_dir_crew (array), cpa_dir_prod (array)
+// ──────────────────────────────────────────────
+let _dirMode = 'crew'; // 'crew' or 'production'
+let _dirTab  = 'list';
+
+function dirGet(type) {
+  try { return JSON.parse(localStorage.getItem('cpa_dir_' + type) || '[]'); } catch(e) { return []; }
+}
+function dirSave(type, arr) {
+  try { localStorage.setItem('cpa_dir_' + type, JSON.stringify(arr)); } catch(e) {}
+}
+
+function openDirectory(mode) {
+  _dirMode = mode || 'crew';
+  document.getElementById('dir-title').textContent = mode === 'production' ? 'PRODUCTION DIRECTORY' : 'CREW DIRECTORY';
+  document.getElementById('dir-crew-fields').style.display = mode === 'crew' ? '' : 'none';
+  document.getElementById('dir-prod-fields').style.display = mode === 'production' ? '' : 'none';
+  document.getElementById('dir-form-title').textContent = mode === 'production' ? 'ADD PRODUCTION COMPANY' : 'ADD CREW MEMBER';
+  dirSwitchTab('list');
+  document.getElementById('dir-modal').classList.add('open');
+  dirRenderList();
+}
+
+function closeDirectory() {
+  document.getElementById('dir-modal').classList.remove('open');
+  dirClearForm();
+}
+
+function dirSwitchTab(tab) {
+  _dirTab = tab;
+  document.getElementById('dir-list-panel').style.display = tab === 'list' ? '' : 'none';
+  document.getElementById('dir-add-panel').style.display  = tab === 'add'  ? '' : 'none';
+  document.getElementById('tab-list').classList.toggle('active', tab === 'list');
+  document.getElementById('tab-add').classList.toggle('active', tab === 'add');
+  if (tab === 'list') dirRenderList();
+}
+
+function dirRenderList() {
+  const list = document.getElementById('dir-list');
+  const entries = dirGet(_dirMode);
+  if (!entries.length) {
+    list.innerHTML = '<div class="dir-empty">No saved profiles yet. Use the "Add New" tab to save one.</div>';
+    return;
+  }
+  list.innerHTML = entries.map((e, i) => {
+    const name = _dirMode === 'crew' ? e.name : e.companyName;
+    const sub  = _dirMode === 'crew'
+      ? [e.designation, e.contact].filter(Boolean).join(' · ')
+      : [e.vat ? 'VAT: '+e.vat : '', e.reg ? 'Reg: '+e.reg : ''].filter(Boolean).join(' · ');
+    return `
+      <div class="dir-entry">
+        <div class="dir-entry-info">
+          <div class="dir-entry-name">${name || '—'}</div>
+          <div class="dir-entry-sub">${sub || '&nbsp;'}</div>
+        </div>
+        <button class="dir-use-btn" onclick="dirApplyEntry(${i})">USE</button>
+        <button class="dir-del-btn" onclick="dirDeleteEntry(${i})" title="Delete">×</button>
+      </div>`;
+  }).join('');
+}
+
+function dirApplyEntry(idx) {
+  const entries = dirGet(_dirMode);
+  const e = entries[idx];
+  if (!e) return;
+
+  if (_dirMode === 'crew') {
+    if (e.name)        document.getElementById('from-name').value        = e.name;
+    if (e.designation) document.getElementById('from-designation').value = e.designation;
+    if (e.addr)        document.getElementById('from-addr').value        = e.addr;
+    if (e.id)          document.getElementById('from-id').value          = e.id;
+    if (e.contact)     document.getElementById('from-contact').value     = e.contact;
+    if (e.tax)         document.getElementById('from-tax').value         = e.tax;
+    if (e.bank)        document.getElementById('bank-name').value        = e.bank;
+    if (e.branch)      document.getElementById('bank-branch').value      = e.branch;
+    if (e.acc)         document.getElementById('bank-acc').value         = e.acc;
+    if (e.rate)        { document.getElementById('daily-rate').value = e.rate; recalcAll(); }
+    generateInvoiceNumber();
+  } else {
+    if (e.companyName) document.getElementById('to-name').value = e.companyName;
+    if (e.addr)        document.getElementById('to-addr').value = e.addr;
+    if (e.reg)         document.getElementById('to-reg').value  = e.reg;
+    if (e.vat)         document.getElementById('to-vat').value  = e.vat;
+  }
+
+  closeDirectory();
+  triggerAutosave();
+  showToast('Profile loaded — ' + (e.name || e.companyName || 'entry'), 'success');
+}
+
+function dirDeleteEntry(idx) {
+  const entries = dirGet(_dirMode);
+  const name = _dirMode === 'crew' ? entries[idx]?.name : entries[idx]?.companyName;
+  entries.splice(idx, 1);
+  dirSave(_dirMode, entries);
+  dirRenderList();
+  showToast('Removed "' + (name || 'entry') + '" from directory', 'success');
+}
+
+function dirSaveEntry() {
+  let entry = {};
+  if (_dirMode === 'crew') {
+    entry = {
+      name:        document.getElementById('df-name').value.trim(),
+      designation: document.getElementById('df-designation').value.trim(),
+      addr:        document.getElementById('df-addr').value.trim(),
+      contact:     document.getElementById('df-contact').value.trim(),
+      tax:         document.getElementById('df-tax').value.trim(),
+      bank:        document.getElementById('df-bank').value.trim(),
+      branch:      document.getElementById('df-branch').value.trim(),
+      acc:         document.getElementById('df-acc').value.trim(),
+      id:          document.getElementById('df-id').value.trim(),
+      rate:        document.getElementById('df-rate').value,
+    };
+    if (!entry.name) { showToast('Enter a name to save', 'error'); return; }
+  } else {
+    entry = {
+      companyName: document.getElementById('dp-name').value.trim(),
+      addr:        document.getElementById('dp-addr').value.trim(),
+      reg:         document.getElementById('dp-reg').value.trim(),
+      vat:         document.getElementById('dp-vat').value.trim(),
+    };
+    if (!entry.companyName) { showToast('Enter a company name to save', 'error'); return; }
+  }
+
+  const entries = dirGet(_dirMode);
+  // Dedupe by name — update if already exists
+  const label = _dirMode === 'crew' ? entry.name : entry.companyName;
+  const existIdx = entries.findIndex(e => (_dirMode === 'crew' ? e.name : e.companyName) === label);
+  if (existIdx >= 0) {
+    entries[existIdx] = entry;
+    showToast('Updated "' + label + '" in directory', 'success');
+  } else {
+    entries.push(entry);
+    showToast('Saved "' + label + '" to directory', 'success');
+  }
+  dirSave(_dirMode, entries);
+  dirClearForm();
+  dirSwitchTab('list');
+}
+
+function dirClearForm() {
+  ['df-name','df-designation','df-addr','df-contact','df-tax','df-bank','df-branch','df-acc','df-id','df-rate',
+   'dp-name','dp-addr','dp-reg','dp-vat'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+// Also allow saving current invoice's crew/production to directory directly
+function saveCurrentToDirectory(mode) {
+  const entries = dirGet(mode);
+  let entry, label;
+  if (mode === 'crew') {
+    entry = {
+      name:        document.getElementById('from-name').value.trim(),
+      designation: document.getElementById('from-designation').value.trim(),
+      addr:        document.getElementById('from-addr').value.trim(),
+      id:          document.getElementById('from-id').value.trim(),
+      contact:     document.getElementById('from-contact').value.trim(),
+      tax:         document.getElementById('from-tax').value.trim(),
+      bank:        document.getElementById('bank-name').value.trim(),
+      branch:      document.getElementById('bank-branch').value.trim(),
+      acc:         document.getElementById('bank-acc').value.trim(),
+      rate:        document.getElementById('daily-rate').value,
+    };
+    label = entry.name;
+    if (!label) { showToast('Fill in your name first', 'error'); return; }
+  } else {
+    entry = {
+      companyName: document.getElementById('to-name').value.trim(),
+      addr:        document.getElementById('to-addr').value.trim(),
+      reg:         document.getElementById('to-reg').value.trim(),
+      vat:         document.getElementById('to-vat').value.trim(),
+    };
+    label = entry.companyName;
+    if (!label) { showToast('Fill in company name first', 'error'); return; }
+  }
+  const existIdx = entries.findIndex(e => (mode === 'crew' ? e.name : e.companyName) === label);
+  if (existIdx >= 0) entries[existIdx] = entry; else entries.push(entry);
+  dirSave(mode, entries);
+  showToast('Saved "' + label + '" to directory', 'success');
+}
+
+// Close modal on backdrop click
+document.getElementById('dir-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeDirectory();
+});
+
+// ──────────────────────────────────────────────
+// INIT — pre-populate with sample data
+// ──────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('inv-date').value = new Date().toISOString().split('T')[0];
+  // Hook inv-date and job-name changes to regenerate invoice number
+  document.getElementById('inv-date').addEventListener('change', generateInvoiceNumber);
+  document.getElementById('job-name').addEventListener('input', autoInvoiceNumber);
+  // Add a couple of starter rows
+  rows = [
+    { id: nextId++, date: '', desc: 'Pre-Production', type: 'Pre-Production', call: '', wrap: '', days: 2 },
+    { id: nextId++, date: '', desc: 'Shoot Day 1', type: 'Shoot Day', call: '06:00', wrap: '18:00', days: 1 },
+    { id: nextId++, date: '', desc: 'Shoot Day 2', type: 'Shoot Day', call: '06:30', wrap: '21:00', days: 1 },
+  ];
+  // Try to restore autosaved session
+  try {
+    const saved = localStorage.getItem('cpa_invoice_autosave');
+    if (saved) {
+      const state = JSON.parse(saved);
+      applyState(state);
+      const dot = document.getElementById('autosave-dot');
+      dot.classList.add('saved');
+      showToast('Previous session restored from autosave', 'success');
+      return;
+    }
+  } catch(e) {}
+  renderTable();
+  recalcExtras();
+});
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════
+     HIDDEN PDF PRINT TEMPLATE
+     Rendered off-screen, printed via window.print()
+     ═══════════════════════════════════════════════════ -->
+<div id="pdf-template" style="display:none"></div>
+
+<!-- PDF printed via window.open -->
+
+<style>
+#pdf-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: white;
+  z-index: 99999;
+  overflow: auto;
+  padding: 20px;
+}
+@media print {
+  body > *:not(#pdf-overlay) { display: none !important; }
+  #pdf-overlay {
+    display: block !important;
+    position: static;
+    padding: 0;
+    overflow: visible;
+  }
+}
+</style>
+<div id="pdf-overlay"></div>
+
+<script>
+function exportPDF() {
+  calcTurnaround(rows);
+  const dr  = getDailyRate();
+  const fmtR = n => 'R ' + Math.round(n).toLocaleString('en-ZA');
+  const fmtC = n => n > 0 ? fmtR(n) : '—';
+
+  let taxable = 0;
+  const rowsCalc = rows.map(r => { const c = calcRow(r); taxable += c.amount; return {row:r,c}; });
+  const paye   = taxable * 0.25;
+  const extras = getExtrasTotal();
+  const grand  = (taxable - paye) + extras;
+
+  const extItems = EXTRA_ITEMS.map(it => ({
+    label: it.label,
+    days:  parseFloat(document.getElementById('e-'+it.key+'-days').value)||0,
+    rate:  parseFloat(document.getElementById('e-'+it.key+'-rate').value)||0,
+  })).map(e => ({...e, amount: e.days * e.rate}));
+
+  const gv = id => document.getElementById(id)?.value || '';
+
+  let taTotal=0, taCount=0;
+  rowsCalc.forEach(({row,c}) => { if(row.tac>0){taTotal+=row.tac;taCount++;} });
+
+  document.title = ''; // suppress browser print header
+  const html = `<html><head><title></title></head><body>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@400;600&display=swap');
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  @page { size:A4; margin:12mm 14mm; }
+  body { font-family:'Barlow',sans-serif; font-size:8.5pt; color:#111; background:white; max-width:182mm; }
+
+  .title-bar { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #111; padding-bottom:5px; margin-bottom:7px; }
+  .title-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:20pt; letter-spacing:3px; color:#111; line-height:1; }
+  .title-bar small { font-family:'IBM Plex Mono',monospace; font-size:6.5pt; color:#999; letter-spacing:1px; }
+  .date-box { border:1px solid #c8921a; padding:3px 8px; text-align:center; background:#fffaf0; }
+  .date-box .dl { font-size:6.5pt; color:#999; letter-spacing:1px; font-family:'IBM Plex Mono',monospace; }
+  .date-box .dv { font-size:10pt; font-weight:700; color:#c8921a; font-family:'IBM Plex Mono',monospace; }
+
+  .sec { display:flex; align-items:center; gap:6px; margin:7px 0 3px; }
+  .sec-n { font-family:'IBM Plex Mono',monospace; font-size:7pt; color:#c8921a; border:1px solid #c8921a; width:15px; height:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:600; }
+  .sec-t { font-family:'Bebas Neue',sans-serif; font-size:11pt; letter-spacing:2px; }
+  .sec-l { flex:1; height:1px; background:#ddd; }
+
+  .parties { display:grid; grid-template-columns:1fr 16px 1fr; margin-bottom:4px; }
+  .ph { font-family:'Bebas Neue',sans-serif; font-size:8pt; letter-spacing:2px; color:#c8921a; padding:2px 5px; background:#111; margin-bottom:1px; }
+  .pr { display:grid; grid-template-columns:82px 1fr; padding:2px 5px; border-bottom:1px solid #f0ebe0; }
+  .pr:nth-child(odd) { background:#fdfaf4; }
+  .pl { color:#999; font-size:7pt; text-align:right; padding-right:6px; }
+  .pv { color:#111; font-size:7.5pt; font-weight:600; }
+
+  .bank-row { display:grid; grid-template-columns:repeat(6,auto); gap:0 6px; margin-bottom:5px; font-size:7.5pt; }
+  .bl { color:#999; text-align:right; padding-right:4px; }
+  .bv { font-weight:700; font-family:'IBM Plex Mono',monospace; }
+
+  .rate-bar { display:flex; align-items:center; gap:10px; background:#111; color:#c8921a; padding:4px 8px; margin:5px 0; }
+  .rate-bar .rl { font-family:'Bebas Neue',sans-serif; font-size:10pt; letter-spacing:2px; }
+  .rate-bar .rv { font-family:'IBM Plex Mono',monospace; font-size:14pt; font-weight:700; }
+  .rate-bar .rn { font-family:'IBM Plex Mono',monospace; font-size:7pt; color:#888; margin-left:auto; }
+
+  table { width:100%; border-collapse:collapse; font-family:'IBM Plex Mono',monospace; font-size:7pt; }
+  th { padding:2px 3px; font-size:6.5pt; border:1px solid #ccc; text-align:center; background:#111; color:#ccc; letter-spacing:0.3px; }
+  th.left { text-align:left; }
+  th.ot { background:#2a2200; color:#c8921a; }
+  th.ta { background:#221e00; color:#c8a020; }
+  th.amt { background:#000; color:#c8921a; font-size:7.5pt; }
+  td { padding:2.5px 3px; border:1px solid #e0d8c8; text-align:center; }
+  td.left { text-align:left; }
+  td.dim { color:#bbb; }
+  td.amt { background:#fdf8ee; font-weight:700; font-size:8pt; border-left:2px solid #c8921a; }
+  td.warn { background:#fff8e0; color:#8b6010; font-weight:700; }
+  tr:nth-child(even) td { background:#fafaf8; }
+  tr:nth-child(even) td.amt { background:#fdf8ee; }
+
+  .tot { width:100%; margin-top:3px; }
+  .tr { display:flex; justify-content:space-between; padding:2.5px 8px; border-bottom:1px solid #ece8e0; font-family:'IBM Plex Mono',monospace; }
+  .tl { font-size:7.5pt; color:#666; }
+  .tv { font-size:8.5pt; font-weight:700; }
+  .tr.ta-line { background:#fffdf5; border-left:2px solid #c87820; }
+  .tr.ta-line .tl { color:#c87820; }
+  .tr.ta-line .tv { color:#c87820; }
+  .tr.sub { background:#fdf8ee; }
+  .tr.tot-row { background:#c8921a; }
+  .tr.tot-row .tl,.tr.tot-row .tv { color:#fff; font-size:9pt; }
+  .tr.paye { background:#fff5f5; }
+  .tr.paye .tl,.tr.paye .tv { color:#c04040; }
+  .tr.net { background:#f8f4ec; }
+  .tr.net .tv { color:#8b6010; }
+
+  .ext-head { display:grid; grid-template-columns:1fr 60px 80px 80px; padding:2px 5px; background:#1a1a1a; font-size:6.5pt; letter-spacing:0.3px; color:#aaa; font-family:'IBM Plex Mono',monospace; }
+  .ext-row { display:grid; grid-template-columns:1fr 60px 80px 80px; padding:2.5px 5px; border-bottom:1px solid #e8ede8; font-size:7.5pt; }
+  .ext-row:nth-child(odd) { background:#f8fdf9; }
+  .er { text-align:right; font-family:'IBM Plex Mono',monospace; }
+  .eg { color:#1e6b3a; font-weight:600; text-align:right; font-family:'IBM Plex Mono',monospace; }
+  .ext-sub { display:flex; justify-content:space-between; padding:3px 5px; background:#e8f5ee; border:1px solid #b8dfc8; font-family:'IBM Plex Mono',monospace; font-size:8pt; font-weight:700; color:#1e6b3a; margin-bottom:6px; }
+
+  .grand { display:flex; justify-content:space-between; align-items:center; background:#111; padding:7px 10px; border-top:3px solid #c8921a; }
+  .gl { font-family:'Bebas Neue',sans-serif; font-size:18pt; letter-spacing:3px; color:#c8921a; }
+  .gv { font-family:'IBM Plex Mono',monospace; font-size:16pt; font-weight:700; color:#fff; }
+  .gn { background:#1a1a1a; font-family:'IBM Plex Mono',monospace; font-size:6.5pt; color:#777; text-align:right; padding:2px 10px 3px; }
+
+  .footer { margin-top:6px; padding-top:4px; border-top:1px solid #ddd; font-family:'IBM Plex Mono',monospace; font-size:6pt; color:#bbb; text-align:center; letter-spacing:0.3px; }
+</style>
+
+<div class="title-bar">
+  <div>
+    <h1>${gv('from-name')||'Film Crew Invoice'}</h1>
+    <small>${gv('job-name') ? gv('job-name')+' &nbsp;·&nbsp; ' : ''}INVOICE${gv('inv-number') ? ' &nbsp;·&nbsp; '+gv('inv-number') : ''}</small>
+  </div>
+  <div class="date-box"><div class="dl">DATE</div><div class="dv">${gv('inv-date')||new Date().toISOString().split('T')[0]}</div></div>
+</div>
+
+<div class="sec"><div class="sec-n">1</div><div class="sec-t">Invoice Parties</div><div class="sec-l"></div></div>
+<div class="parties">
+  <div>
+    <div class="ph">TO — PRODUCTION</div>
+    ${[['Company',gv('to-name')],['Address',gv('to-addr')],['Reg No.',gv('to-reg')],['VAT No.',gv('to-vat')],['Job',gv('job-name')]].map(([l,v])=>'<div class="pr"><span class="pl">'+l+'</span><span class="pv">'+(v||'&mdash;')+'</span></div>').join('')}
+  </div>
+  <div></div>
+  <div>
+    <div class="ph">FROM — CREW MEMBER</div>
+    ${[['Name',gv('from-name')],['Designation',gv('from-designation')],['Address',gv('from-addr')],['ID/Passport',gv('from-id')],['Contact',gv('from-contact')],['Tax No.',gv('from-tax')]].map(([l,v])=>'<div class="pr"><span class="pl">'+l+'</span><span class="pv">'+(v||'&mdash;')+'</span></div>').join('')}
+  </div>
+</div>
+
+<div class="sec"><div class="sec-n">2</div><div class="sec-t">Banking Details</div><div class="sec-l"></div></div>
+<div class="bank-row">
+  ${[['Bank',gv('bank-name')],['Branch Code',gv('bank-branch')],['Account No.',gv('bank-acc')]].map(([l,v])=>'<span class="bl">'+l+'</span><span class="bv">'+(v||'&mdash;')+'</span>').join('')}
+</div>
+
+<div class="rate-bar">
+  <span class="rl">Daily Rate</span>
+  <span class="rv">${fmtR(dr)}</span>
+  <span class="rn">Hourly: ${fmtR(dr/10)} &nbsp;(÷10 — OT after hr ${getBaseHours()}${getBaseHours()===12?' — 12hr deal':''})</span>
+</div>
+
+<div class="sec"><div class="sec-n">3</div><div class="sec-t">Services Rendered — Timesheet</div><div class="sec-l"></div></div>
+<table>
+  <thead><tr>
+    <th class="left" style="width:66px">Date</th>
+    <th class="left">Description</th>
+    <th style="width:24px">Days</th>
+    <th style="width:34px">Call</th>
+    <th style="width:34px">Wrap</th>
+    <th style="width:28px">Hrs</th>
+    <th class="ot" style="width:26px">×1.5h</th>
+    <th class="ot" style="width:42px">×1.5R</th>
+    <th class="ot" style="width:26px">×2.0h</th>
+    <th class="ot" style="width:42px">×2.0R</th>
+    <th class="ot" style="width:26px">×3.0h</th>
+    <th class="ot" style="width:42px">×3.0R</th>
+    <th class="ta" style="width:32px">T/A h</th>
+    <th class="ta" style="width:42px">T/A R</th>
+    <th class="amt" style="width:50px">Amount</th>
+  </tr></thead>
+  <tbody>
+    ${rowsCalc.map(({row,c})=>'<tr>'+
+      '<td class="left">'+(row.date||'&mdash;')+'</td>'+
+      '<td class="left">'+(row.desc||row.type)+'</td>'+
+      '<td>'+c.days+'</td>'+
+      '<td class="'+(row.call?'':'dim')+'">'+(row.call||'&mdash;')+'</td>'+
+      '<td class="'+(row.wrap?'':'dim')+'">'+(row.wrap||'&mdash;')+'</td>'+
+      '<td class="'+(c.totalHrs>0?'':'dim')+'">'+(c.totalHrs>0?c.totalHrs.toFixed(1)+'h':'&mdash;')+'</td>'+
+      '<td class="'+(c.ot15h>0?'':'dim')+'">'+(c.ot15h>0?c.ot15h.toFixed(2):'&mdash;')+'</td>'+
+      '<td class="'+(c.ot15c>0?'':'dim')+'">'+(fmtC(c.ot15c))+'</td>'+
+      '<td class="'+(c.ot2h>0?'':'dim')+'">'+(c.ot2h>0?c.ot2h.toFixed(2):'&mdash;')+'</td>'+
+      '<td class="'+(c.ot2c>0?'':'dim')+'">'+(fmtC(c.ot2c))+'</td>'+
+      '<td class="'+(c.ot3h>0?'':'dim')+'">'+(c.ot3h>0?c.ot3h.toFixed(2):'&mdash;')+'</td>'+
+      '<td class="'+(c.ot3c>0?'':'dim')+'">'+(fmtC(c.ot3c))+'</td>'+
+      '<td class="'+(row.taWarn?'warn':'dim')+'">'+(c.tah>0?c.tah.toFixed(2)+'h':'&mdash;')+(row.taWarn?' <b>'+row.taWarn+'</b>':'')+'</td>'+
+      '<td class="'+(c.tac>0?'':'dim')+'">'+(fmtC(c.tac))+'</td>'+
+      '<td class="amt">'+fmtR(c.amount)+'</td>'+
+    '</tr>').join('')}
+  </tbody>
+</table>
+
+<div class="tot">
+  ${taTotal>0?'<div class="tr ta-line"><span class="tl">T/A Penalties ('+taCount+' violation'+(taCount>1?'s':'')+')</span><span class="tv">'+fmtR(taTotal)+'</span></div>':''}
+  <div class="tr sub"><span class="tl">Subtotal — Taxable Days</span><span class="tv">${fmtR(taxable)}</span></div>
+  <div class="tr tot-row"><span class="tl">TOTAL TAXABLE</span><span class="tv">${fmtR(taxable)}</span></div>
+  <div class="tr paye"><span class="tl">Less: PAYE 25% (deducted by production)</span><span class="tv">− ${fmtR(paye)}</span></div>
+  <div class="tr net"><span class="tl">Net Taxable (after PAYE)</span><span class="tv">${fmtR(taxable*0.75)}</span></div>
+</div>
+
+<div class="sec" style="margin-top:6px"><div class="sec-n">4</div><div class="sec-t">Extras — Non-Taxable Allowances</div><div class="sec-l"></div></div>
+<div class="ext-head"><span>Item</span><span style="text-align:right">Days</span><span style="text-align:right">Rate R/day</span><span style="text-align:right">Amount</span></div>
+${extItems.map(e=>'<div class="ext-row"><span>'+e.label+'</span><span class="er">'+(e.days||0)+'</span><span class="er">'+fmtR(e.rate)+'</span><span class="'+(e.amount>0?'eg':'dim')+'">'+(e.amount>0?fmtR(e.amount):'&mdash;')+'</span></div>').join('')}
+<div class="ext-sub"><span>Extras Subtotal</span><span>${fmtR(extras)}</span></div>
+
+<div class="grand"><span class="gl">Grand Total</span><span class="gv">${fmtR(grand)}</span></div>
+<div class="gn">Net Taxable ${fmtR(taxable*0.75)} + Non-Taxable Extras ${fmtR(extras)} &nbsp;·&nbsp; Net of PAYE</div>
+
+<div class="footer">All calculations per CPA guidelines &nbsp;·&nbsp; Base day = ${getBaseHours()}hrs ${getBaseHours()===12?'(12hr deal)':''} &nbsp;·&nbsp; PAYE deducted by production</div>
+</body></html>`;
+
+  const overlay = document.getElementById('pdf-overlay');
+  overlay.innerHTML = html;
+  overlay.style.display = 'block';
+
+  // Small delay so browser paints the overlay before print dialog opens
+  setTimeout(() => {
+    window.print();
+    // Hide overlay after print dialog closes
+    setTimeout(() => { overlay.style.display = 'none'; }, 500);
+  }, 250);
+}
+</script>
+
+<div id="toast"><span id="toast-icon"></span><span id="toast-msg"></span><span id="toast-icon"></span><span id="toast-msg"></span></div>
+
+<!-- ── DIRECTORY MODAL ── -->
+<style>
+#dir-modal {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.82); backdrop-filter: blur(6px);
+  align-items: center; justify-content: center;
+}
+#dir-modal.open { display: flex; }
+#dir-box {
+  background: var(--surface);
+  border: 1px solid var(--amber-dim);
+  width: 680px; max-width: 96vw; max-height: 88vh;
+  display: flex; flex-direction: column;
+  clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+}
+#dir-header {
+  background: var(--surface3);
+  border-bottom: 1px solid var(--amber-dim);
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+#dir-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px; letter-spacing: 3px; color: var(--amber);
+}
+#dir-close {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 18px; cursor: pointer;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+}
+#dir-close:hover { border-color: var(--red); color: var(--red); }
+#dir-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+}
+.dir-tab {
+  font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 2px;
+  padding: 10px 20px; border: none; cursor: pointer;
+  background: var(--surface2); color: var(--text-dim);
+  border-right: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.dir-tab.active { background: var(--surface3); color: var(--amber); border-bottom: 2px solid var(--amber); }
+#dir-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+#dir-form {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.dir-form-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 15px;
+  letter-spacing: 2px; color: var(--amber); margin-bottom: 4px;
+}
+.dir-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dir-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.dir-field { display: flex; flex-direction: column; gap: 3px; }
+.dir-field label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
+.dir-field input {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; padding: 6px 8px; outline: none; width: 100%;
+}
+.dir-field input:focus { border-color: var(--amber); }
+#dir-save-btn {
+  font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px;
+  background: var(--amber); color: #000; border: none; padding: 8px 20px;
+  cursor: pointer; align-self: flex-start;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+#dir-save-btn:hover { background: var(--amber-bright); }
+#dir-list { display: flex; flex-direction: column; gap: 6px; }
+.dir-entry {
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 10px 12px;
+  display: grid; grid-template-columns: 1fr auto auto;
+  align-items: center; gap: 10px;
+  transition: border-color 0.15s;
+}
+.dir-entry:hover { border-color: var(--amber-dim); }
+.dir-entry-info { display: flex; flex-direction: column; gap: 2px; }
+.dir-entry-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); }
+.dir-entry-sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim); }
+.dir-use-btn {
+  font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 1.5px;
+  background: var(--amber); color: #000; border: none; padding: 5px 12px; cursor: pointer;
+  white-space: nowrap;
+}
+.dir-use-btn:hover { background: var(--amber-bright); }
+.dir-del-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 14px; cursor: pointer;
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+}
+.dir-del-btn:hover { border-color: var(--red); color: var(--red); }
+.dir-empty {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  color: var(--text-muted); text-align: center; padding: 24px;
+  border: 1px dashed var(--border);
+}
+</style>
+
+<div id="dir-modal">
+  <div id="dir-box">
+    <div id="dir-header">
+      <span id="dir-title">DIRECTORY</span>
+      <button id="dir-close" onclick="closeDirectory()">×</button>
+    </div>
+    <div id="dir-tabs">
+      <button class="dir-tab active" id="tab-list" onclick="dirSwitchTab('list')">SAVED PROFILES</button>
+      <button class="dir-tab" id="tab-add" onclick="dirSwitchTab('add')">+ ADD NEW</button>
+    </div>
+    <div id="dir-body">
+      <!-- List tab -->
+      <div id="dir-list-panel">
+        <div id="dir-list"></div>
+      </div>
+      <!-- Add tab -->
+      <div id="dir-add-panel" style="display:none">
+        <div id="dir-form">
+          <div class="dir-form-title" id="dir-form-title">ADD CREW MEMBER</div>
+          <!-- Crew fields -->
+          <div id="dir-crew-fields">
+            <div class="dir-grid" style="margin-bottom:8px">
+              <div class="dir-field"><label>Full Name</label><input id="df-name" type="text" placeholder="e.g. Marcus Thatcher"/></div>
+              <div class="dir-field"><label>Designation / Role</label><input id="df-designation" type="text" placeholder="e.g. Prop Master"/></div>
+            </div>
+            <div class="dir-field" style="margin-bottom:8px"><label>Address</label><input id="df-addr" type="text" placeholder="Street, City, Province"/></div>
+            <div class="dir-grid" style="margin-bottom:8px">
+              <div class="dir-field"><label>Contact</label><input id="df-contact" type="text"/></div>
+              <div class="dir-field"><label>Tax Number</label><input id="df-tax" type="text"/></div>
+            </div>
+            <div class="dir-grid-3" style="margin-bottom:8px">
+              <div class="dir-field"><label>Bank</label><input id="df-bank" type="text" placeholder="e.g. FNB"/></div>
+              <div class="dir-field"><label>Branch Code</label><input id="df-branch" type="text" placeholder="e.g. 250655"/></div>
+              <div class="dir-field"><label>Account Number</label><input id="df-acc" type="text"/></div>
+            </div>
+            <div class="dir-grid" style="margin-bottom:8px">
+              <div class="dir-field"><label>ID / Passport</label><input id="df-id" type="text"/></div>
+              <div class="dir-field"><label>Default Day Rate (R)</label><input id="df-rate" type="number" min="0" placeholder="e.g. 2500"/></div>
+            </div>
+          </div>
+          <!-- Production fields -->
+          <div id="dir-prod-fields" style="display:none">
+            <div class="dir-grid" style="margin-bottom:8px">
+              <div class="dir-field"><label>Company Name</label><input id="dp-name" type="text" placeholder="e.g. Velocity Films"/></div>
+              <div class="dir-field"><label>VAT Number</label><input id="dp-vat" type="text" placeholder="e.g. 4123456789"/></div>
+            </div>
+            <div class="dir-field" style="margin-bottom:8px"><label>Company Address</label><input id="dp-addr" type="text" placeholder="Street, City, Province"/></div>
+            <div class="dir-field" style="margin-bottom:8px"><label>Reg Number</label><input id="dp-reg" type="text" placeholder="e.g. 2021/123456/07"/></div>
+          </div>
+          <button id="dir-save-btn" onclick="dirSaveEntry()">SAVE TO DIRECTORY</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
