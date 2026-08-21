@@ -37,7 +37,7 @@
 
   /* STICKY TOTALS BAR */
   #totals-bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    position: sticky; top: 0; z-index: 100;
     background: rgba(10,10,10,0.96);
     border-bottom: 1px solid var(--amber-dim);
     backdrop-filter: blur(10px);
@@ -87,7 +87,7 @@
   }
   #pdf-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: var(--amber-dim); }
 
-  .main { padding: 68px 24px 120px; max-width: 1100px; margin: 0 auto; }
+  .main { padding: 20px 24px 120px; max-width: 1100px; margin: 0 auto; }
 
   /* SECTION HEADERS */
   .section-head {
@@ -416,13 +416,188 @@
     font-size: 10px; letter-spacing: 1px;
   }
 
-  /* RESPONSIVE */
-  @media (max-width: 768px) {
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    #totals-bar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
-    .bar-brand { font-size: 18px; margin-right: 0; }
+  /* ══════════════════════════════════════════════
+     RESPONSIVE
+     ══════════════════════════════════════════════ */
+
+  /* The totals bar sheds content in measured stages. Laid out in full it needs
+     1794px, so it has never fitted a laptop screen — each tier below drops the
+     least useful thing left until what remains fits on one 48px line:
+       full 1794  ·  no rules/caption 1665  ·  short buttons 1199  ·  total only 859 */
+  @media (max-width: 1794px) {
+    #totals-bar { gap: 0 14px; padding: 0 16px; }
     .bar-divider { display: none; }
-    .main { padding-top: 90px; }
+    .bar-brand { margin-right: 8px; }
+    #autosave-label { display: none; }
+  }
+
+  @media (max-width: 1664px) {
+    /* Icons + full words no longer fit; keep the words. */
+    #save-btn, #load-btn, #export-btn, #pdf-btn {
+      font-size: 0; letter-spacing: 0; padding: 8px 14px;
+    }
+    #save-btn::after   { content: "SAVE"; font-size: 15px; letter-spacing: 2px; }
+    #load-btn::after   { content: "LOAD"; font-size: 15px; letter-spacing: 2px; }
+    #export-btn::after { content: "XLSX"; font-size: 15px; letter-spacing: 2px; }
+    #pdf-btn::after    { content: "PDF";  font-size: 15px; letter-spacing: 2px; }
+  }
+
+  @media (max-width: 1198px) {
+    /* Taxable / PAYE / Extras stay available in full in Section 4 — in the bar
+       only the grand total survives. */
+    .bar-item:not(.bar-item-grand) { display: none; }
+  }
+
+  /* Laptop / tablet — the timesheet's fixed columns need ~985px. Below that,
+     scroll it sideways rather than crushing the OT columns into ellipses. */
+  @media (max-width: 1100px) {
+    .ts-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.ts { min-width: 985px; }
+  }
+
+  /* Phone / small tablet — the timesheet becomes labelled cards. */
+  @media (max-width: 860px) {
+
+    /* ── shell ── */
+    .main { padding: 14px 12px 60px; }
+    .panel { padding: 14px; }
+    .section-head { margin: 24px 0 12px; }
+    .section-title { font-size: 17px; letter-spacing: 2px; }
+    .footer { padding: 28px 12px; }
+
+    #totals-bar { height: auto; padding: 7px 10px; gap: 6px 8px; flex-wrap: wrap; }
+    .bar-brand { font-size: 15px; letter-spacing: 1.5px; margin-right: 0; flex: 1 1 auto; order: 1; }
+    .bar-item-grand { display: flex; order: 2; flex: 0 0 auto; align-items: flex-end; }
+    .bar-item-grand .bar-label { font-size: 8px; }
+    .bar-value.grand { font-size: 17px; line-height: 1; }
+    /* Zero-height full-width break: forces the buttons onto their own row
+       instead of letting flex-wrap strand one or two of them beside the total. */
+    .bar-spacer { display: block; order: 3; flex: 0 0 100%; height: 0; }
+    .bar-autosave { order: 4; margin-right: 0 !important; flex: 0 0 auto; }
+    #save-btn, #load-btn, #export-btn, #pdf-btn {
+      order: 5; flex: 1 1 auto; min-width: 68px;
+      padding: 10px 4px;
+    }
+    #save-btn::after, #load-btn::after,
+    #export-btn::after, #pdf-btn::after { font-size: 13px; letter-spacing: 1.5px; }
+
+    /* ── forms ── */
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    /* 16px keeps iOS Safari from zooming the viewport on focus. */
+    .field input, .field select { font-size: 16px; padding: 10px; }
+    .pnl-head { flex-wrap: wrap; gap: 8px; }
+    .inv-meta { flex: 1 1 100%; }
+    .inv-meta .field { width: auto !important; flex: 1 1 45%; }
+    .btn-row { flex-wrap: wrap; }
+    .btn-row button { flex: 1 1 100%; padding: 10px !important; font-size: 11px !important; }
+
+    /* ── daily rate ── */
+    .rate-hero { flex-wrap: wrap; padding: 14px; gap: 10px 12px; }
+    .rate-hero input { font-size: 26px; width: auto; flex: 1 1 120px; min-width: 0; }
+    .rate-hero .derived { margin-left: 0; flex: 1 1 100%; line-height: 1.6; }
+    #deal-toggle { margin-left: 0 !important; flex: 1 1 100%; }
+    #deal-toggle button { flex: 1 1 50%; padding: 11px 8px !important; }
+
+    /* ── timesheet: table → cards ── */
+    .ts-wrap { overflow-x: visible; }
+    table.ts { display: block; min-width: 0; table-layout: auto; }
+    table.ts colgroup, table.ts thead { display: none; }
+    table.ts tbody { display: block; }
+    table.ts tr {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--amber-dim);
+      padding: 12px 12px 10px;
+      margin-bottom: 8px;
+    }
+    table.ts tr:hover td { background: transparent; }
+    table.ts td {
+      display: block; padding: 0; border: none;
+      text-align: left; white-space: normal; overflow: visible;
+    }
+    table.ts td::before {
+      content: attr(data-l);
+      display: block; margin-bottom: 3px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text-dim);
+    }
+    table.ts td input, table.ts td select, table.ts td .time-text {
+      font-size: 16px; padding: 9px 8px; text-align: left;
+      border-color: var(--border);
+    }
+    table.ts td.c-date { flex: 1 1 100%; padding-right: 40px; }
+    table.ts td.c-desc { flex: 1 1 100%; }
+    table.ts td.c-type { flex: 1 1 100%; }
+    table.ts td.c-call, table.ts td.c-wrap, table.ts td.c-days { flex: 1 1 28%; min-width: 0; }
+    table.ts td.c-call .time-text, table.ts td.c-wrap .time-text { text-align: center; }
+    table.ts td.c-days input { width: 100% !important; text-align: center !important; }
+    table.ts td.c-days .calc-cell { padding: 9px 0; display: block; }
+
+    /* Calculated columns are mostly em-dashes — show only the ones that fired,
+       as chips, so a plain 10-hour day stays a three-field card. */
+    table.ts td.calc-cell:not(.has-value):not(.c-amt) { display: none; }
+    table.ts td.calc-cell.has-value {
+      flex: 0 1 auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 5px 9px; font-size: 12px;
+    }
+    table.ts td.c-tah.has-value { border-color: var(--warning); }
+    table.ts td.c-amt {
+      flex: 1 1 100%;
+      display: flex !important;
+      justify-content: space-between; align-items: center;
+      margin-top: 2px; padding-top: 9px;
+      border-top: 1px solid var(--border);
+      font-size: 17px;
+    }
+    table.ts td.c-amt::before { margin-bottom: 0; font-size: 10px; }
+    table.ts td.c-del { position: absolute; top: 9px; right: 9px; flex: 0 0 auto; }
+    table.ts td.c-del::before { display: none; }
+    .del-btn { font-size: 20px; padding: 5px 10px; }
+    .add-row-btn { padding: 14px; font-size: 12px; }
+
+    /* ── extras ── */
+    table.extras th, table.extras td { padding: 8px 6px; }
+    table.extras th { font-size: 8px; letter-spacing: 0.5px; }
+    table.extras td { font-size: 12px; }
+    table.extras th:nth-child(2), table.extras td:nth-child(2) { width: 50px; }
+    table.extras th:nth-child(3), table.extras td:nth-child(3) { width: 66px; }
+    table.extras th:nth-child(4), table.extras td:nth-child(4) { width: 74px; }
+    table.extras td input { width: 100%; font-size: 15px; padding: 8px 4px; }
+    .extras-tag { display: block; width: fit-content; margin: 4px 0 0; white-space: nowrap; }
+    .extras-sub-row { gap: 16px !important; padding: 12px 6px 0 !important; }
+
+    /* ── subtotals ── */
+    .subtotal-block { padding: 14px; }
+    .subtotal-row { gap: 12px; }
+    .subtotal-label { font-size: 10px; }
+    .subtotal-row.total-row .subtotal-label { font-size: 11px; }
+    .subtotal-row.grand-row { padding: 10px; margin: 8px -6px -14px; }
+    .subtotal-row.grand-row .subtotal-label { font-size: 15px; }
+    .subtotal-row.grand-row .subtotal-value { font-size: 22px; }
+
+    /* ── toast + directory modal ── */
+    #toast { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+    #dir-box { width: 100%; max-width: 100%; max-height: 92vh; }
+    #dir-header { padding: 12px 14px; }
+    #dir-body { padding: 12px; }
+    .dir-tab { flex: 1 1 0; padding: 12px 6px; font-size: 13px; letter-spacing: 1px; }
+    .dir-grid, .dir-grid-3 { grid-template-columns: 1fr; }
+    .dir-field input { font-size: 16px; padding: 9px 8px; }
+    .dir-entry { grid-template-columns: 1fr auto; gap: 8px; }
+    .dir-entry-info { grid-column: 1 / -1; }
+    #dir-save-btn { align-self: stretch; text-align: center; padding: 11px 20px; }
+  }
+
+  /* Narrow phones. Call / Wrap / Days still fit three-up down to ~320px now
+     that the time inputs are allowed to shrink below their intrinsic width. */
+  @media (max-width: 400px) {
+    .bar-brand { font-size: 13px; }
+    .inv-meta .field { flex: 1 1 100%; }
   }
 </style>
 </head>
@@ -447,12 +622,12 @@
     <span class="bar-value extras" id="bar-extras">R 0</span>
   </div>
   <div class="bar-divider"></div>
-  <div class="bar-item">
+  <div class="bar-item bar-item-grand">
     <span class="bar-label">Grand Total</span>
     <span class="bar-value grand" id="bar-grand">R 0</span>
   </div>
   <div class="bar-spacer"></div>
-  <div style="display:flex;align-items:center;gap:6px;margin-right:12px">
+  <div class="bar-autosave" style="display:flex;align-items:center;gap:6px;margin-right:12px">
     <div id="autosave-dot"></div>
     <span id="autosave-label">AUTOSAVED</span>
   </div>
@@ -476,27 +651,27 @@
   <div class="panel">
     <div class="grid-2" style="gap:24px">
       <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="pnl-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--amber)">TO — PRODUCTION COMPANY</div>
           <button onclick="openDirectory('production')" style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1.5px;padding:4px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;" title="Load from directory">📁 DIRECTORY</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <div class="field"><label>Company Name</label><input id="to-name" type="text" placeholder="e.g. Velocity Films"/></div>
-          <div class="field"><label>Company Address</label><input id="to-addr" type="text" placeholder="Street, City, Province"/></div>
+          <div class="field"><label>Company Name</label><input id="to-name" type="text" value="We are Creative t/a Star Films" placeholder="e.g. Velocity Films"/></div>
+          <div class="field"><label>Company Address</label><input id="to-addr" type="text" value="8 Stirling Street, Waverley, 2090" placeholder="Street, City, Province"/></div>
           <div class="grid-2">
-            <div class="field"><label>Reg Number</label><input id="to-reg" type="text" placeholder="e.g. 2021/123456/07"/></div>
-            <div class="field"><label>VAT Number</label><input id="to-vat" type="text" placeholder="e.g. 4123456789"/></div>
+            <div class="field"><label>Reg Number</label><input id="to-reg" type="text" value="2015/086655/07" placeholder="e.g. 2021/123456/07"/></div>
+            <div class="field"><label>VAT Number</label><input id="to-vat" type="text" value="4110269125" placeholder="e.g. 4123456789"/></div>
           </div>
-          <div class="field"><label>Job / Production Name</label><input id="job-name" type="text" placeholder="e.g. Takealot TVC 2025"/></div>
+          <div class="field"><label>Job / Production Name</label><input id="job-name" type="text" value="Chicken Licken" placeholder="e.g. Takealot TVC 2025"/></div>
         </div>
       </div>
       <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="pnl-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="display:flex;gap:8px;align-items:center">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--amber)">FROM — CREW MEMBER</div>
             <button onclick="openDirectory('crew')" style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1.5px;padding:4px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;" title="Load from directory">📁 DIRECTORY</button>
           </div>
-          <div style="display:flex;gap:8px;align-items:flex-end">
+          <div class="inv-meta" style="display:flex;gap:8px;align-items:flex-end">
             <div class="field" style="width:140px">
               <label>Invoice Number</label>
               <input id="inv-number" type="text" placeholder="Auto-generated"/>
@@ -522,7 +697,7 @@
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;margin-top:10px">
+    <div class="btn-row" style="display:flex;gap:8px;margin-top:10px">
       <button onclick="saveCurrentToDirectory('crew')" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;">💾 SAVE CREW TO DIRECTORY</button>
       <button onclick="saveCurrentToDirectory('production')" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;">💾 SAVE PRODUCTION TO DIRECTORY</button>
     </div>
@@ -659,31 +834,31 @@
         </tr>
         <tr>
           <td>Vehicle / Car Allowance</td>
-          <td style="text-align:right"><input id="e-vehicle-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-vehicle-days" type="number" value="7" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right"><input id="e-vehicle-rate" type="number" value="550" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right" class="extras-amount" id="e-vehicle-amt">R 0</td>
         </tr>
         <tr>
           <td>Panel Van / Vehicle Hire</td>
-          <td style="text-align:right"><input id="e-van-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-van-days" type="number" value="16" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right"><input id="e-van-rate" type="number" value="1000" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right" class="extras-amount" id="e-van-amt">R 0</td>
         </tr>
         <tr>
           <td>Cell Phone Allowance</td>
-          <td style="text-align:right"><input id="e-cell-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-cell-days" type="number" value="19.25" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right"><input id="e-cell-rate" type="number" value="80" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right" class="extras-amount" id="e-cell-amt">R 0</td>
         </tr>
         <tr>
           <td>Lunches / Meals</td>
-          <td style="text-align:right"><input id="e-meals-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
+          <td style="text-align:right"><input id="e-meals-days" type="number" value="12.22" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right"><input id="e-meals-rate" type="number" value="100" min="0" oninput="recalcExtras()"/></td>
           <td style="text-align:right" class="extras-amount" id="e-meals-amt">R 0</td>
         </tr>
       </tbody>
     </table>
-    <div style="display:flex;justify-content:flex-end;padding:12px 12px 0;gap:40px;align-items:center">
+    <div class="extras-sub-row" style="display:flex;justify-content:flex-end;padding:12px 12px 0;gap:40px;align-items:center">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim)">Extras Subtotal</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--green)" id="extras-sub">R 0</div>
     </div>
@@ -797,6 +972,10 @@ function inputTime(el, rowIdx, field) {
   }
 }
 
+// Money is invoiced in whole rands: round every component here, and build each
+// row's amount out of the rounded components, so the printed columns add up.
+const r0 = n => Math.round(n || 0);
+
 function calcRow(row) {
   const dr = getDailyRate();
   const base = getBaseHours(); // 10 (standard) or 12 (deal) — OT threshold only
@@ -806,13 +985,13 @@ function calcRow(row) {
   if (type === 'Pre-Production' || type === 'Post-Production') {
     const days = parseFloat(row.days) || 0;
     const tah = row.tah || 0;
-    const tac = row.tac || 0;
-    return { days, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah, tac, amount: days * dr + tac };
+    const tac = r0(row.tac);
+    return { days, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah, tac, amount: r0(days * dr) + tac };
   }
   if (type === 'Travel Day') {
     // CPA: travel day = half (0.5) of standard day rate
     const days = parseFloat(row.days) || 1;
-    return { days, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: 0, tac: 0, amount: days * dr * 0.5 };
+    return { days, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: 0, tac: 0, amount: r0(days * dr * 0.5) };
   }
   if (type === 'Premium Day') {
     // CPA: premium day (Sunday / Public Holiday / first night shoot) = 1.5 × daily rate base
@@ -822,7 +1001,7 @@ function calcRow(row) {
     const premBase = dr * 1.5;
     const premHr   = premBase / 10; // hourly rate always ÷10
     if (callM === null || wrapM === null) {
-      return { days: 1, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: row.tah||0, tac: row.tac||0, amount: premBase + (row.tac||0) };
+      return { days: 1, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: row.tah||0, tac: r0(row.tac), amount: r0(premBase) + r0(row.tac) };
     }
     let worked = wrapM - callM;
     if (worked < 0) worked += 1440;
@@ -832,12 +1011,12 @@ function calcRow(row) {
     const ot15h = Math.min(premOtTotal, premOt15cap);        // first 2 OT hrs (12hr deal) or 4 (10hr) at ×1.5
     const ot2h  = Math.max(premOtTotal - premOt15cap, 0);   // beyond ×1.5 bucket at ×2
     const ot3h  = 0; // triple only applies past midnight on last shoot day — handled separately
-    const ot15c = ot15h * premHr * 1.5;
-    const ot2c  = ot2h  * premHr * 2.0;
+    const ot15c = r0(ot15h * premHr * 1.5);
+    const ot2c  = r0(ot2h  * premHr * 2.0);
     const ot3c  = 0;
     const tah = row.tah || 0;
-    const tac = row.tac || 0;
-    const amount = premBase + ot15c + ot2c + tac;
+    const tac = r0(row.tac);
+    const amount = r0(premBase) + ot15c + ot2c + tac;
     return { days: 1, totalHrs: workedHrs, ot15h, ot15c, ot2h, ot2c, ot3h, ot3c, tah, tac, amount, isPremium: true };
   }
 
@@ -849,7 +1028,7 @@ function calcRow(row) {
   const callM = toMins(row.call);
   const wrapM = toMins(row.wrap);
   if (callM === null || wrapM === null) {
-    return { days: 1, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: row.tah || 0, tac: row.tac || 0, amount: dr + (row.tac || 0) };
+    return { days: 1, totalHrs: 0, ot15h: 0, ot15c: 0, ot2h: 0, ot2c: 0, ot3h: 0, ot3c: 0, tah: row.tah || 0, tac: r0(row.tac), amount: r0(dr) + r0(row.tac) };
   }
 
   let worked = wrapM - callM;
@@ -865,13 +1044,13 @@ function calcRow(row) {
   const ot15h = Math.min(otTotal, ot15cap);
   const ot2h  = Math.min(Math.max(otTotal - ot15cap, 0), ot2cap);
   const ot3h  = row.pastMidnight ? Math.max(otTotal - ot15cap - ot2cap, 0) : 0; // triple time only if flagged past midnight on last day
-  const ot15c = ot15h * hr * 1.5;
-  const ot2c  = ot2h * hr * 2.0;
-  const ot3c  = ot3h * hr * 3.0;
+  const ot15c = r0(ot15h * hr * 1.5);
+  const ot2c  = r0(ot2h * hr * 2.0);
+  const ot3c  = r0(ot3h * hr * 3.0);
   const tah   = row.tah || 0;
-  const tac   = row.tac || 0;
+  const tac   = r0(row.tac);
 
-  const amount = dr + ot15c + ot2c + ot3c + tac;
+  const amount = r0(dr) + ot15c + ot2c + ot3c + tac;
   return { days: 1, totalHrs: workedHrs, ot15h, ot15c, ot2h, ot2c, ot3h, ot3c, tah, tac, amount };
 }
 
@@ -932,7 +1111,7 @@ function calcTurnaround(rows) {
         const tier1 = Math.min(shortfall, 2);
         const tier2 = Math.min(Math.max(shortfall - 2, 0), 2);
         const tier3 = Math.max(shortfall - 4, 0);
-        rows[i].tac = (tier1 * hr * 1) + (tier2 * hr * 2) + (tier3 * hr * 3);
+        rows[i].tac = Math.round((tier1 * hr * 1) + (tier2 * hr * 2) + (tier3 * hr * 3));
         rows[i].taWarn = 'T/A';
       }
       break;
@@ -964,27 +1143,27 @@ function renderTable() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="left"><input type="date" value="${row.date}" onchange="rows[${i}].date=this.value;recalcAll()"/></td>
-      <td class="left"><input type="text" value="${row.desc}" placeholder="Description" onchange="rows[${i}].desc=this.value;recalcAll()"/></td>
-      <td>
+      <td class="left c-date" data-l="Date"><input type="date" value="${row.date}" onchange="rows[${i}].date=this.value;recalcAll()"/></td>
+      <td class="left c-desc" data-l="Description"><input type="text" value="${row.desc}" placeholder="Description" onchange="rows[${i}].desc=this.value;recalcAll()"/></td>
+      <td class="c-type" data-l="Type">
         <select onchange="rows[${i}].type=this.value;recalcAll()">
           ${TYPES.map(t => `<option value="${t}" ${t===row.type?'selected':''}>${t}</option>`).join('')}
         </select>
       </td>
-      <td>${isTimeRow ? `<input class="time-text" value="${row.call||''}" placeholder="08:00" onblur="blurTime(this,${i},'call')"/>` : '<span class="calc-cell">—</span>'}</td>
-      <td>${isTimeRow ? `<input class="time-text" value="${row.wrap||''}" placeholder="17:00" onblur="blurTime(this,${i},'wrap')"/>` : '<span class="calc-cell">—</span>'}</td>
-      <td>${(row.type==='Pre-Production'||row.type==='Post-Production'||row.type==='Travel Day') ? `<input type="number" value="${row.days||1}" min="0" style="width:50px;text-align:center" onchange="rows[${i}].days=this.value;recalcAll()"/>` : '<span class="calc-cell has-value">1</span>'}</td>
-      <td class="calc-cell ${c.totalHrs>0?'has-value':''}">${isTimeRow && c.totalHrs > 0 ? c.totalHrs.toFixed(1)+'h' : '—'}</td>
-      <td class="calc-cell ${c.ot15h>0?'has-value':''}">${c.ot15h > 0 ? c.ot15h.toFixed(2) : '—'}</td>
-      <td class="calc-cell ${c.ot15c>0?'has-value':''}">${c.ot15c > 0 ? fmt(c.ot15c) : '—'}</td>
-      <td class="calc-cell ${c.ot2h>0?'has-value':''}">${c.ot2h > 0 ? c.ot2h.toFixed(2) : '—'}</td>
-      <td class="calc-cell ${c.ot2c>0?'has-value':''}">${c.ot2c > 0 ? fmt(c.ot2c) : '—'}</td>
-      <td class="calc-cell ${c.ot3h>0?'has-value':''}">${c.ot3h > 0 ? c.ot3h.toFixed(2) : '—'}</td>
-      <td class="calc-cell ${c.ot3c>0?'has-value':''}">${c.ot3c > 0 ? fmt(c.ot3c) : '—'}</td>
-      <td class="calc-cell ${c.tah>0?'has-value':''}">${c.tah > 0 ? c.tah.toFixed(2)+'h' : '—'}${row.taWarn ? `<span class="ta-warn">${row.taWarn}</span>` : ''}</td>
-      <td class="calc-cell ${c.tac>0?'has-value':''}">${c.tac > 0 ? fmt(c.tac) : '—'}</td>
-      <td class="calc-cell amount ${c.amount>0?'nonzero':''}">${fmt(c.amount)}</td>
-      <td><button class="del-btn" onclick="delRow(${i})">×</button></td>
+      <td class="c-call" data-l="Call">${isTimeRow ? `<input class="time-text" value="${row.call||''}" placeholder="08:00" onblur="blurTime(this,${i},'call')"/>` : '<span class="calc-cell">—</span>'}</td>
+      <td class="c-wrap" data-l="Wrap">${isTimeRow ? `<input class="time-text" value="${row.wrap||''}" placeholder="17:00" onblur="blurTime(this,${i},'wrap')"/>` : '<span class="calc-cell">—</span>'}</td>
+      <td class="c-days" data-l="Days">${(row.type==='Pre-Production'||row.type==='Post-Production'||row.type==='Travel Day') ? `<input type="number" value="${row.days||1}" min="0" style="width:50px;text-align:center" onchange="rows[${i}].days=this.value;recalcAll()"/>` : '<span class="calc-cell has-value">1</span>'}</td>
+      <td class="calc-cell c-hrs ${c.totalHrs>0?'has-value':''}" data-l="Hours">${isTimeRow && c.totalHrs > 0 ? c.totalHrs.toFixed(1)+'h' : '—'}</td>
+      <td class="calc-cell c-oth ${c.ot15h>0?'has-value':''}" data-l="×1.5 hrs">${c.ot15h > 0 ? c.ot15h.toFixed(2) : '—'}</td>
+      <td class="calc-cell c-otc ${c.ot15c>0?'has-value':''}" data-l="×1.5 cost">${c.ot15c > 0 ? fmt(c.ot15c) : '—'}</td>
+      <td class="calc-cell c-oth2 ${c.ot2h>0?'has-value':''}" data-l="×2.0 hrs">${c.ot2h > 0 ? c.ot2h.toFixed(2) : '—'}</td>
+      <td class="calc-cell c-otc2 ${c.ot2c>0?'has-value':''}" data-l="×2.0 cost">${c.ot2c > 0 ? fmt(c.ot2c) : '—'}</td>
+      <td class="calc-cell c-oth3 ${c.ot3h>0?'has-value':''}" data-l="×3.0 hrs">${c.ot3h > 0 ? c.ot3h.toFixed(2) : '—'}</td>
+      <td class="calc-cell c-otc3 ${c.ot3c>0?'has-value':''}" data-l="×3.0 cost">${c.ot3c > 0 ? fmt(c.ot3c) : '—'}</td>
+      <td class="calc-cell c-tah ${c.tah>0?'has-value':''}" data-l="T/A hrs">${c.tah > 0 ? c.tah.toFixed(2)+'h' : '—'}${row.taWarn ? `<span class="ta-warn">${row.taWarn}</span>` : ''}</td>
+      <td class="calc-cell c-tac ${c.tac>0?'has-value':''}" data-l="T/A cost">${c.tac > 0 ? fmt(c.tac) : '—'}</td>
+      <td class="calc-cell amount c-amt ${c.amount>0?'nonzero':''}" data-l="Amount">${fmt(c.amount)}</td>
+      <td class="c-del"><button class="del-btn" onclick="delRow(${i})" aria-label="Delete row">×</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -1025,7 +1204,7 @@ function recalcExtras() {
   EXTRA_ITEMS.forEach(({key: k}) => {
     const d = parseFloat(document.getElementById(`e-${k}-days`).value) || 0;
     const r = parseFloat(document.getElementById(`e-${k}-rate`).value) || 0;
-    const amt = d * r;
+    const amt = Math.round(d * r);
     extrasTotal += amt;
     document.getElementById(`e-${k}-amt`).textContent = amt > 0 ? fmt(amt) : 'R 0';
   });
@@ -1054,7 +1233,7 @@ function recalcTotals() {
       taRow.style.display = 'none';
     }
   }
-  const paye = taxable * 0.25;
+  const paye = Math.round(taxable * 0.25);
   const extras = getExtrasTotal();
   // CPA: Grand Total = (taxable - PAYE) + non-taxable extras
   const grand = (taxable - paye) + extras;
@@ -1076,8 +1255,8 @@ function recalcTotals() {
 function getExtrasTotal() {
   let t = 0;
   EXTRA_ITEMS.forEach(({key: k}) => {
-    t += (parseFloat(document.getElementById(`e-${k}-days`).value)||0) *
-         (parseFloat(document.getElementById(`e-${k}-rate`).value)||0);
+    t += Math.round((parseFloat(document.getElementById(`e-${k}-days`).value)||0) *
+                    (parseFloat(document.getElementById(`e-${k}-rate`).value)||0));
   });
   return t;
 }
@@ -1263,7 +1442,7 @@ function exportToExcel() {
     sc(ws,`C${R}`,c.days,{bgColor:rowBg,color:XL.TEXT,sz:10,align:'center',border:'all'});
 
     // ── OT columns D–I with formulas ──
-    const isTimeRow = row.type==='Shoot Day';
+    const isTimeRow = row.type==='Shoot Day' || row.type==='Premium Day';
     const base = getBaseHours();
 
     if(isTimeRow && row.call && row.wrap) {
@@ -1278,14 +1457,19 @@ function exportToExcel() {
         ? `(${wrapDec}+24-${callDec})`
         : `(${wrapDec}-${callDec})`;
 
-      // ×1.5 hours: MIN(MAX(worked-base,0),4)
-      const f15h = `=MIN(MAX(${wHrs}-${base},0),4)`;
-      // ×2.0 hours: MAX(worked-(base+4),0)
-      const f2h  = `=MAX(${wHrs}-(${base}+4),0)`;
+      // OT buckets must match calcRow: 10hr day = 4hrs ×1.5 then unlimited ×2.
+      // 12hr deal = 2hrs ×1.5 then 4hrs ×2. Premium days have no ×2 cap.
+      const isPrem  = row.type === 'Premium Day';
+      const cap15   = (base === 12) ? 2 : 4;
+      const rowHr   = isPrem ? (drVal * 1.5) / 10 : hrVal;
+      const f15h = `=MIN(MAX(${wHrs}-${base},0),${cap15})`;
+      const f2h  = (base === 12 && !isPrem)
+        ? `=MIN(MAX(${wHrs}-${base}-${cap15},0),4)`
+        : `=MAX(${wHrs}-${base}-${cap15},0)`;
       // ×1.5 cost
-      const f15c = `=D${R}*${hrVal}*1.5`;
+      const f15c = `=ROUND(D${R}*${rowHr}*1.5,0)`;
       // ×2.0 cost
-      const f2c  = `=F${R}*${hrVal}*2`;
+      const f2c  = `=ROUND(F${R}*${rowHr}*2,0)`;
       // ×3.0 (only if pastMidnight — embed static for now)
       const ot3h = c.ot3h||0;
       const ot3c = c.ot3c||0;
@@ -1317,15 +1501,15 @@ function exportToExcel() {
     const isTimeRowAmt = row.type==='Shoot Day' && row.call && row.wrap;
     let amtFormula;
     if(row.type==='Pre-Production'||row.type==='Post-Production') {
-      amtFormula = `=C${R}*${drVal}`; // days × daily rate
+      amtFormula = `=ROUND(C${R}*${drVal},0)+K${R}`; // days × daily rate + any T/A
     } else if(row.type==='Travel Day') {
-      amtFormula = `=C${R}*${drVal}*0.5`;
+      amtFormula = `=ROUND(C${R}*${drVal}*0.5,0)`;
     } else if(row.type==='Premium Day') {
-      amtFormula = `=${drVal}*1.5+E${R}+G${R}+I${R}+K${R}`;
+      amtFormula = `=ROUND(${drVal}*1.5,0)+E${R}+G${R}+I${R}+K${R}`;
     } else if(isTimeRowAmt) {
-      amtFormula = `=${drVal}+E${R}+G${R}+I${R}+K${R}`; // base + OT costs + T/A
+      amtFormula = `=ROUND(${drVal},0)+E${R}+G${R}+I${R}+K${R}`; // base + OT + T/A
     } else {
-      amtFormula = `=C${R}*${drVal}`;
+      amtFormula = `=ROUND(C${R}*${drVal},0)`;
     }
     const amtIsZero = c.amount===0;
     sc(ws,`M${R}`,amtFormula,{bgColor:XL.AMBER_BG,color:amtIsZero?XL.TEXT_MUTED:XL.AMBER_DARK,sz:11,bold:!amtIsZero,align:'right',numFmt:'"R "#,##0',border:'all'});
@@ -1361,7 +1545,7 @@ function exportToExcel() {
   const payeRow = R;
   rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.PAYE_BG});
   sc(ws,`K${R}`,'Less: PAYE 25%',{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:9,italic:true,align:'right'});
-  sc(ws,`M${R}`,`=M${totalRow}*0.25`,{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  sc(ws,`M${R}`,`=ROUND(M${totalRow}*0.25,0)`,{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
   mR(merges,R,10,11); R++;
 
   const netRow = R;
@@ -1399,7 +1583,7 @@ function exportToExcel() {
     sc(ws,`A${R}`,e.label,{bgColor:bg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
     sc(ws,`C${R}`,d,{bgColor:bg,color:d>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',border:'all'});
     sc(ws,`E${R}`,r,{bgColor:bg,color:r>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
-    sc(ws,`M${R}`,`=C${R}*E${R}`,{bgColor:bg,color:a>0?XL.GREEN_FG:XL.TEXT_MUTED,sz:10,bold:a>0,align:'right',numFmt:'"R "#,##0',border:'all'});
+    sc(ws,`M${R}`,`=ROUND(C${R}*E${R},0)`,{bgColor:bg,color:a>0?XL.GREEN_FG:XL.TEXT_MUTED,sz:10,bold:a>0,align:'right',numFmt:'"R "#,##0',border:'all'});
     mR(merges,R,0,1); mR(merges,R,2,3); mR(merges,R,4,11); R++;
   });
   const lastExtRow = R - 1;
@@ -1420,8 +1604,9 @@ function exportToExcel() {
 
   const grandRow = R - 1;
   rowH[R-1]={hpt:13};
-  const grand=(taxable-taxable*0.25)+extTotal;
-  const noteText='Net Taxable R'+Math.round(taxable*0.75).toLocaleString()+' + Non-Taxable Extras R'+Math.round(extTotal).toLocaleString();
+  const payeAmt=Math.round(taxable*0.25);
+  const grand=(taxable-payeAmt)+extTotal;
+  const noteText='Net Taxable R'+(taxable-payeAmt).toLocaleString()+' + Non-Taxable Extras R'+Math.round(extTotal).toLocaleString();
   sc(ws,`A${R}`,noteText,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:8,italic:true,align:'left',indent:1});
   for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_MID});
   mR(merges,R,0,NCOLS-1); R++;
@@ -1823,15 +2008,15 @@ function saveCurrentToDirectory(mode) {
   showToast('Saved "' + label + '" to directory', 'success');
 }
 
-// Close modal on backdrop click
-document.getElementById('dir-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeDirectory();
-});
 
 // ──────────────────────────────────────────────
 // INIT — pre-populate with sample data
 // ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  // Bound here, not at parse time: #dir-modal is declared later in the document.
+  document.getElementById('dir-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDirectory();
+  });
   document.getElementById('inv-date').value = new Date().toISOString().split('T')[0];
   // Hook inv-date and job-name changes to regenerate invoice number
   document.getElementById('inv-date').addEventListener('change', generateInvoiceNumber);
@@ -1898,7 +2083,7 @@ function exportPDF() {
 
   let taxable = 0;
   const rowsCalc = rows.map(r => { const c = calcRow(r); taxable += c.amount; return {row:r,c}; });
-  const paye   = taxable * 0.25;
+  const paye   = Math.round(taxable * 0.25);
   const extras = getExtrasTotal();
   const grand  = (taxable - paye) + extras;
 
@@ -2070,7 +2255,7 @@ function exportPDF() {
   <div class="tr sub"><span class="tl">Subtotal — Taxable Days</span><span class="tv">${fmtR(taxable)}</span></div>
   <div class="tr tot-row"><span class="tl">TOTAL TAXABLE</span><span class="tv">${fmtR(taxable)}</span></div>
   <div class="tr paye"><span class="tl">Less: PAYE 25% (deducted by production)</span><span class="tv">− ${fmtR(paye)}</span></div>
-  <div class="tr net"><span class="tl">Net Taxable (after PAYE)</span><span class="tv">${fmtR(taxable*0.75)}</span></div>
+  <div class="tr net"><span class="tl">Net Taxable (after PAYE)</span><span class="tv">${fmtR(taxable - paye)}</span></div>
 </div>
 
 <div class="sec" style="margin-top:6px"><div class="sec-n">4</div><div class="sec-t">Extras — Non-Taxable Allowances</div><div class="sec-l"></div></div>
@@ -2079,7 +2264,7 @@ ${extItems.map(e=>'<div class="ext-row"><span>'+e.label+'</span><span class="er"
 <div class="ext-sub"><span>Extras Subtotal</span><span>${fmtR(extras)}</span></div>
 
 <div class="grand"><span class="gl">Grand Total</span><span class="gv">${fmtR(grand)}</span></div>
-<div class="gn">Net Taxable ${fmtR(taxable*0.75)} + Non-Taxable Extras ${fmtR(extras)} &nbsp;·&nbsp; Net of PAYE</div>
+<div class="gn">Net Taxable ${fmtR(taxable - paye)} + Non-Taxable Extras ${fmtR(extras)} &nbsp;·&nbsp; Net of PAYE</div>
 
 <div class="footer">All calculations per CPA guidelines &nbsp;·&nbsp; Base day = ${getBaseHours()}hrs ${getBaseHours()===12?'(12hr deal)':''} &nbsp;·&nbsp; PAYE deducted by production</div>
 </body></html>`;
