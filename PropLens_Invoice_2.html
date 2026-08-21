@@ -2098,13 +2098,14 @@ function exportPDF() {
   let taTotal=0, taCount=0;
   rowsCalc.forEach(({row,c}) => { if(row.tac>0){taTotal+=row.tac;taCount++;} });
 
+  const prevTitle = document.title;
   document.title = ''; // suppress browser print header
   const html = `<html><head><title></title></head><body>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@400;600&display=swap');
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-  @page { size:A4; margin:12mm 14mm; }
-  body { font-family:'Barlow',sans-serif; font-size:8.5pt; color:#111; background:white; max-width:182mm; }
+  @page { size:A4; margin:0; }
+  body { font-family:'Barlow',sans-serif; font-size:8.5pt; color:#111; background:white; max-width:210mm; padding:12mm 14mm; }
 
   .title-bar { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #111; padding-bottom:5px; margin-bottom:7px; }
   .title-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:20pt; letter-spacing:3px; color:#111; line-height:1; }
@@ -2273,11 +2274,21 @@ ${extItems.map(e=>'<div class="ext-row"><span>'+e.label+'</span><span class="er"
   overlay.innerHTML = html;
   overlay.style.display = 'block';
 
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';      // discard the print stylesheet with the markup
+    document.title = prevTitle;  // restore the tab title
+  };
+  window.addEventListener('afterprint', cleanup, { once: true });
+
   // Small delay so browser paints the overlay before print dialog opens
   setTimeout(() => {
     window.print();
-    // Hide overlay after print dialog closes
-    setTimeout(() => { overlay.style.display = 'none'; }, 500);
+    // Fallback for browsers that do not fire afterprint
+    setTimeout(cleanup, 1000);
   }, 250);
 }
 </script>
