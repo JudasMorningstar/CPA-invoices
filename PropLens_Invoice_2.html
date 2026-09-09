@@ -495,8 +495,8 @@
     .rate-hero { flex-wrap: wrap; padding: 14px; gap: 10px 12px; }
     .rate-hero input { font-size: 26px; width: auto; flex: 1 1 120px; min-width: 0; }
     .rate-hero .derived { margin-left: 0; flex: 1 1 100%; line-height: 1.6; }
-    #deal-toggle { margin-left: 0 !important; flex: 1 1 100%; }
-    #deal-toggle button { flex: 1 1 50%; padding: 11px 8px !important; }
+    #deal-toggle, #tax-toggle { margin-left: 0 !important; flex: 1 1 100%; }
+    #deal-toggle button, #tax-toggle button { flex: 1 1 50%; padding: 11px 8px !important; }
 
     /* ── timesheet: table → cards ── */
     .ts-wrap { overflow-x: visible; }
@@ -612,7 +612,7 @@
     <span class="bar-value taxable" id="bar-taxable">R 0</span>
   </div>
   <div class="bar-divider"></div>
-  <div class="bar-item">
+  <div class="bar-item" id="bar-paye-item">
     <span class="bar-label">PAYE 25% est.</span>
     <span class="bar-value paye" id="bar-paye">R 0</span>
   </div>
@@ -730,6 +730,10 @@
       <button id="toggle-10" onclick="setBaseHours(10)" style="padding:6px 14px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.5px;border:none;cursor:pointer;background:var(--amber);color:#111;transition:all 0.15s">10 HR</button>
       <button id="toggle-12" onclick="setBaseHours(12)" style="padding:6px 14px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.5px;border:none;cursor:pointer;background:var(--surface2);color:var(--text-dim);transition:all 0.15s">12 HR DEAL</button>
     </div>
+    <div id="tax-toggle" title="Whether production deducts PAYE on this job" style="display:flex;gap:0;margin-left:10px;border:1px solid var(--border);overflow:hidden;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)">
+      <button id="toggle-tax-on" onclick="setPayeEnabled(true)" style="padding:6px 14px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.5px;border:none;cursor:pointer;transition:all 0.15s;background:var(--amber);color:#111">PAYE 25%</button>
+      <button id="toggle-tax-off" onclick="setPayeEnabled(false)" style="padding:6px 14px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.5px;border:none;cursor:pointer;transition:all 0.15s;background:var(--surface2);color:var(--text-dim)">NO PAYE</button>
+    </div>
   </div>
 
   <!-- ── SECTION 3: TIMESHEET ── -->
@@ -802,7 +806,7 @@
       <div class="subtotal-label">Total Taxable Income</div>
       <div class="subtotal-value" id="st-total">R 0</div>
     </div>
-    <div class="subtotal-row paye-row">
+    <div class="subtotal-row paye-row" id="st-paye-row">
       <div class="subtotal-label">Deductable PAYE @ 25% <span style="font-size:10px;opacity:0.6">(informational — deducted by production)</span></div>
       <div class="subtotal-value" id="st-paye">R 0</div>
     </div>
@@ -870,7 +874,7 @@
       <div class="subtotal-label" style="font-size:10px;color:var(--text-muted)">Taxable Income</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim)" id="gt-taxable">R 0</div>
     </div>
-    <div class="subtotal-row" style="padding:8px 0">
+    <div class="subtotal-row" id="gt-paye-row" style="padding:8px 0">
       <div class="subtotal-label" style="font-size:10px;color:var(--red)">Less: PAYE 25%</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--red)" id="gt-paye">− R 0</div>
     </div>
@@ -879,7 +883,7 @@
       <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--green)" id="gt-extras">R 0</div>
     </div>
     <div class="subtotal-row grand-row">
-      <div class="subtotal-label">GRAND TOTAL<span style="font-size:10px;letter-spacing:1px;opacity:0.6;margin-left:8px">(NET OF PAYE)</span></div>
+      <div class="subtotal-label">GRAND TOTAL<span id="grand-note" style="font-size:10px;letter-spacing:1px;opacity:0.6;margin-left:8px">(NET OF PAYE)</span></div>
       <div class="subtotal-value" id="grand-total">R 0</div>
     </div>
   </div>
@@ -915,6 +919,22 @@ function setBaseHours(h) {
   document.getElementById('base-hrs-label').textContent  = is12
     ? '12-hour deal: OT kicks in after hour 12'
     : 'CPA standard: 1 day = 10 base hours';
+  recalcAll();
+}
+
+// Some jobs are invoiced without production deducting PAYE. Default is on.
+function getPayeEnabled() { return window._payeOn !== false; }
+
+function setPayeEnabled(on) {
+  window._payeOn = !!on;
+  const onBtn  = document.getElementById('toggle-tax-on');
+  const offBtn = document.getElementById('toggle-tax-off');
+  if (onBtn && offBtn) {
+    onBtn.style.background  = on ? 'var(--amber)'    : 'var(--surface2)';
+    onBtn.style.color       = on ? '#111'            : 'var(--text-dim)';
+    offBtn.style.background = on ? 'var(--surface2)' : 'var(--amber)';
+    offBtn.style.color      = on ? 'var(--text-dim)' : '#111';
+  }
   recalcAll();
 }
 
@@ -1233,10 +1253,20 @@ function recalcTotals() {
       taRow.style.display = 'none';
     }
   }
-  const paye = Math.round(taxable * 0.25);
+  const payeOn = getPayeEnabled();
+  const paye = payeOn ? Math.round(taxable * 0.25) : 0;
   const extras = getExtrasTotal();
   // CPA: Grand Total = (taxable - PAYE) + non-taxable extras
   const grand = (taxable - paye) + extras;
+
+  // On an untaxed job the PAYE lines are hidden rather than shown as zero,
+  // so the invoice does not imply a deduction that was never made.
+  ['st-paye-row', 'gt-paye-row', 'bar-paye-item'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = payeOn ? '' : 'none';
+  });
+  const gn = document.getElementById('grand-note');
+  if (gn) gn.textContent = payeOn ? '(NET OF PAYE)' : '(NO PAYE DEDUCTED)';
 
   const fmtR = n => 'R ' + Math.round(n).toLocaleString('en-ZA');
   document.getElementById('st-taxable').textContent = fmtR(taxable);
@@ -1542,17 +1572,22 @@ function exportToExcel() {
   sc(ws,`M${R}`,`=M${subtotalRow}`,{bgColor:XL.AMBER,color:XL.WHITE,sz:13,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
   mR(merges,R,10,11); R++;
 
-  const payeRow = R;
-  rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.PAYE_BG});
-  sc(ws,`K${R}`,'Less: PAYE 25%',{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:9,italic:true,align:'right'});
-  sc(ws,`M${R}`,`=ROUND(M${totalRow}*0.25,0)`,{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
-  mR(merges,R,10,11); R++;
+  const payeOn = getPayeEnabled();
+  let netRow = totalRow;   // with no PAYE, the taxable total is the net
 
-  const netRow = R;
-  rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.SUB_BG});
-  sc(ws,`K${R}`,'Net Taxable (after PAYE)',{bgColor:XL.SUB_BG,color:XL.TEXT_DIM,sz:9,align:'right'});
-  sc(ws,`M${R}`,`=M${totalRow}-M${payeRow}`,{bgColor:XL.SUB_BG,color:XL.TEXT,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
-  mR(merges,R,10,11); R++;
+  if (payeOn) {
+    const payeRow = R;
+    rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.PAYE_BG});
+    sc(ws,`K${R}`,'Less: PAYE 25%',{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:9,italic:true,align:'right'});
+    sc(ws,`M${R}`,`=ROUND(M${totalRow}*0.25,0)`,{bgColor:XL.PAYE_BG,color:XL.PAYE_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+    mR(merges,R,10,11); R++;
+
+    netRow = R;
+    rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.SUB_BG});
+    sc(ws,`K${R}`,'Net Taxable (after PAYE)',{bgColor:XL.SUB_BG,color:XL.TEXT_DIM,sz:9,align:'right'});
+    sc(ws,`M${R}`,`=M${totalRow}-M${payeRow}`,{bgColor:XL.SUB_BG,color:XL.TEXT,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+    mR(merges,R,10,11); R++;
+  }
 
   const taxable = rows.reduce((s,row)=>s+calcRow(row).amount,0); // still needed for extras note
 
@@ -1604,16 +1639,18 @@ function exportToExcel() {
 
   const grandRow = R - 1;
   rowH[R-1]={hpt:13};
-  const payeAmt=Math.round(taxable*0.25);
+  const payeAmt=payeOn?Math.round(taxable*0.25):0;
   const grand=(taxable-payeAmt)+extTotal;
-  const noteText='Net Taxable R'+(taxable-payeAmt).toLocaleString()+' + Non-Taxable Extras R'+Math.round(extTotal).toLocaleString();
+  const noteText=(payeOn?'Net Taxable R':'Fees R')+(taxable-payeAmt).toLocaleString()
+    +' + Non-Taxable Extras R'+Math.round(extTotal).toLocaleString()
+    +(payeOn?'':' · No PAYE deducted on this job');
   sc(ws,`A${R}`,noteText,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:8,italic:true,align:'left',indent:1});
   for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_MID});
   mR(merges,R,0,NCOLS-1); R++;
 
   rowH[R-1]={hpt:6}; fillRow(ws,R,NCOLS,{bgColor:XL.WHITE}); R++;
   rowH[R-1]={hpt:14};
-  sc(ws,`A${R}`,'CPA Guidelines: Standard day = 10hrs. OT hrs 11-14 x1.5, hrs 15+ x2.0. T/A penalty: first 2hrs x1, next 2hrs x2, thereafter x3 pro rata. PAYE deducted by production.',{bgColor:XL.OFF_WHITE,color:XL.TEXT_MUTED,sz:8,italic:true,indent:1});
+  sc(ws,`A${R}`,'CPA Guidelines: Standard day = 10hrs. OT hrs 11-14 x1.5, hrs 15+ x2.0. T/A penalty: first 2hrs x1, next 2hrs x2, thereafter x3 pro rata. '+(payeOn?'PAYE deducted by production.':'No PAYE deducted on this job.'),{bgColor:XL.OFF_WHITE,color:XL.TEXT_MUTED,sz:8,italic:true,indent:1});
   for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.OFF_WHITE});
   mR(merges,R,0,NCOLS-1); R++;
 
@@ -1685,6 +1722,7 @@ function gatherState() {
     },
     dailyRate: document.getElementById('daily-rate').value,
       baseHours: getBaseHours(),
+    payeEnabled: getPayeEnabled(),
     rows: rows,
     extras: EXTRA_ITEMS.reduce((o, it) => {
       o[it.key + 'Days'] = document.getElementById(`e-${it.key}-days`).value;
@@ -1719,6 +1757,7 @@ function applyState(state) {
   rows = (state.rows || []).map(r => ({ ...r }));
   nextId = rows.length ? Math.max(...rows.map(r => r.id || 0)) + 1 : 1;
   if (state.baseHours) setBaseHours(state.baseHours);
+  if (state.payeEnabled !== undefined) setPayeEnabled(state.payeEnabled);
   renderTable();
   recalcExtras();
 }
@@ -2083,7 +2122,8 @@ function exportPDF() {
 
   let taxable = 0;
   const rowsCalc = rows.map(r => { const c = calcRow(r); taxable += c.amount; return {row:r,c}; });
-  const paye   = Math.round(taxable * 0.25);
+  const payeOn = getPayeEnabled();
+  const paye   = payeOn ? Math.round(taxable * 0.25) : 0;
   const extras = getExtrasTotal();
   const grand  = (taxable - paye) + extras;
 
@@ -2255,8 +2295,8 @@ function exportPDF() {
   ${taTotal>0?'<div class="tr ta-line"><span class="tl">T/A Penalties ('+taCount+' violation'+(taCount>1?'s':'')+')</span><span class="tv">'+fmtR(taTotal)+'</span></div>':''}
   <div class="tr sub"><span class="tl">Subtotal — Taxable Days</span><span class="tv">${fmtR(taxable)}</span></div>
   <div class="tr tot-row"><span class="tl">TOTAL TAXABLE</span><span class="tv">${fmtR(taxable)}</span></div>
-  <div class="tr paye"><span class="tl">Less: PAYE 25% (deducted by production)</span><span class="tv">− ${fmtR(paye)}</span></div>
-  <div class="tr net"><span class="tl">Net Taxable (after PAYE)</span><span class="tv">${fmtR(taxable - paye)}</span></div>
+  ${payeOn ? '<div class="tr paye"><span class="tl">Less: PAYE 25% (deducted by production)</span><span class="tv">&minus; '+fmtR(paye)+'</span></div>'
+             + '<div class="tr net"><span class="tl">Net Taxable (after PAYE)</span><span class="tv">'+fmtR(taxable - paye)+'</span></div>' : ''}
 </div>
 
 <div class="sec" style="margin-top:6px"><div class="sec-n">4</div><div class="sec-t">Extras — Non-Taxable Allowances</div><div class="sec-l"></div></div>
@@ -2265,9 +2305,9 @@ ${extItems.map(e=>'<div class="ext-row"><span>'+e.label+'</span><span class="er"
 <div class="ext-sub"><span>Extras Subtotal</span><span>${fmtR(extras)}</span></div>
 
 <div class="grand"><span class="gl">Grand Total</span><span class="gv">${fmtR(grand)}</span></div>
-<div class="gn">Net Taxable ${fmtR(taxable - paye)} + Non-Taxable Extras ${fmtR(extras)} &nbsp;·&nbsp; Net of PAYE</div>
+<div class="gn">${payeOn ? 'Net Taxable' : 'Fees'} ${fmtR(taxable - paye)} + Non-Taxable Extras ${fmtR(extras)} &nbsp;·&nbsp; ${payeOn ? 'Net of PAYE' : 'No PAYE deducted on this job'}</div>
 
-<div class="footer">All calculations per CPA guidelines &nbsp;·&nbsp; Base day = ${getBaseHours()}hrs ${getBaseHours()===12?'(12hr deal)':''} &nbsp;·&nbsp; PAYE deducted by production</div>
+<div class="footer">All calculations per CPA guidelines &nbsp;·&nbsp; Base day = ${getBaseHours()}hrs ${getBaseHours()===12?'(12hr deal)':''} &nbsp;·&nbsp; ${payeOn ? 'PAYE deducted by production' : 'No PAYE deducted'}</div>
 </body></html>`;
 
   const overlay = document.getElementById('pdf-overlay');
