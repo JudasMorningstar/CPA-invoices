@@ -87,7 +87,7 @@
   }
   #pdf-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: var(--amber-dim); }
 
-  .main { padding: 20px 24px 120px; max-width: 1100px; margin: 0 auto; }
+  .main { padding: 20px 24px 120px; max-width: 1200px; margin: 0 auto; }
 
   /* SECTION HEADERS */
   .section-head {
@@ -166,16 +166,21 @@
   .rate-hero .derived span { color: var(--amber); }
 
   /* TIMESHEET TABLE */
-  .ts-wrap { width: 100%; }
+  .ts-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table.ts {
     width: 100%; border-collapse: collapse;
+    /* Job + Rate pushed the fixed columns past the container; keep a real
+       minimum so Description stays readable and scroll sideways if needed. */
+    min-width: 1150px;
     table-layout: fixed;
     font-family: 'IBM Plex Mono', monospace; font-size: 11px;
   }
   /* Fixed column widths — tuned to fit without scrolling */
   table.ts col.c-date  { width: 94px; }
+  table.ts col.c-job   { width: 96px; }
   table.ts col.c-desc  { width: auto; }   /* flex fill */
   table.ts col.c-type  { width: 90px; }
+  table.ts col.c-rate  { width: 68px; }
   table.ts col.c-call  { width: 52px; }
   table.ts col.c-wrap  { width: 52px; }
   table.ts col.c-days  { width: 34px; }
@@ -209,6 +214,46 @@
   }
   table.ts td.left { text-align: left; }
   table.ts tr:hover td { background: rgba(200,146,42,0.04); }
+
+  /* JOB GROUPING — a heading and a subtotal wrapped around each job's rows */
+  tr.job-row td {
+    background: rgba(200,146,42,0.10);
+    border-bottom: 1px solid var(--amber-dim) !important;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px; letter-spacing: 2.5px; color: var(--amber);
+    padding: 7px 10px !important; text-align: left !important;
+  }
+  tr.job-sub td {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border) !important;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim); padding: 6px 10px !important;
+  }
+  tr.job-sub td.job-sub-val {
+    font-size: 13px; font-weight: 600; color: var(--amber-bright);
+    text-align: right !important; letter-spacing: 0;
+  }
+
+  /* JOB SUMMARY — fees + extras per job, mirroring how jobs are quoted */
+  #job-summary { margin-top: 2px; }
+  #job-summary table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; }
+  #job-summary th {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text-dim); text-align: right; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); font-weight: 400;
+  }
+  #job-summary th:first-child { text-align: left; }
+  #job-summary td {
+    font-size: 13px; padding: 9px 12px; text-align: right;
+    border-bottom: 1px solid var(--border); color: var(--text-dim);
+  }
+  #job-summary td:first-child {
+    text-align: left; color: var(--text);
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px;
+  }
+  #job-summary td.js-total { color: var(--amber-bright); font-weight: 600; }
+  #job-summary td.js-extras { color: var(--green); }
 
   /* Group headers in table */
   table.ts th.group-ot { background: rgba(200,146,42,0.12); color: var(--amber); }
@@ -352,6 +397,10 @@
     width: 80px; transition: border-color 0.1s; text-align: right;
   }
   table.extras td input:focus { border-color: var(--amber); }
+  /* Item and Job are free text now, so they fill their cells rather than
+     inheriting the 80px width the old days/rate-only inputs used. */
+  table.extras td:nth-child(1) input,
+  table.extras td:nth-child(2) input { width: 100%; text-align: left; }
   .extras-tag {
     display: inline-block;
     background: rgba(74,158,106,0.15);
@@ -450,10 +499,7 @@
 
   /* Laptop / tablet — the timesheet's fixed columns need ~985px. Below that,
      scroll it sideways rather than crushing the OT columns into ellipses. */
-  @media (max-width: 1100px) {
-    .ts-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table.ts { min-width: 985px; }
-  }
+
 
   /* Phone / small tablet — the timesheet becomes labelled cards. */
   @media (max-width: 860px) {
@@ -529,8 +575,21 @@
       border-color: var(--border);
     }
     table.ts td.c-date { flex: 1 1 100%; padding-right: 40px; }
+    table.ts td.c-job  { flex: 1 1 48%; }
+    table.ts td.c-rate { flex: 1 1 48%; }
     table.ts td.c-desc { flex: 1 1 100%; }
     table.ts td.c-type { flex: 1 1 100%; }
+
+    /* Group heading and subtotal are headings, not cards. */
+    table.ts tr.job-row, table.ts tr.job-sub {
+      display: flex; flex-wrap: wrap; background: none;
+      border: none; border-left: none; padding: 0; margin: 14px 0 4px;
+    }
+    table.ts tr.job-sub { margin: 0 0 14px; justify-content: space-between; }
+    table.ts tr.job-row td, table.ts tr.job-sub td { flex: 1 1 auto; }
+    table.ts tr.job-sub td.job-sub-val { flex: 0 0 auto; }
+    table.ts tr.job-row td::before, table.ts tr.job-sub td::before { display: none; }
+    table.ts tr.job-row td:empty, table.ts tr.job-sub td:empty { display: none; }
     table.ts td.c-call, table.ts td.c-wrap, table.ts td.c-days { flex: 1 1 28%; min-width: 0; }
     table.ts td.c-call .time-text, table.ts td.c-wrap .time-text { text-align: center; }
     table.ts td.c-days input { width: 100% !important; text-align: center !important; }
@@ -564,9 +623,12 @@
     table.extras th, table.extras td { padding: 8px 6px; }
     table.extras th { font-size: 8px; letter-spacing: 0.5px; }
     table.extras td { font-size: 12px; }
-    table.extras th:nth-child(2), table.extras td:nth-child(2) { width: 50px; }
-    table.extras th:nth-child(3), table.extras td:nth-child(3) { width: 66px; }
-    table.extras th:nth-child(4), table.extras td:nth-child(4) { width: 74px; }
+    table.extras th:nth-child(2), table.extras td:nth-child(2) { width: 62px; }
+    table.extras th:nth-child(3), table.extras td:nth-child(3) { width: 46px; }
+    table.extras th:nth-child(4), table.extras td:nth-child(4) { width: 60px; }
+    table.extras th:nth-child(5), table.extras td:nth-child(5) { width: 70px; }
+    table.extras th:nth-child(6), table.extras td:nth-child(6) { width: 26px; }
+    table.extras td input { min-width: 0; }
     table.extras td input { width: 100%; font-size: 15px; padding: 8px 4px; }
     .extras-tag { display: block; width: fit-content; margin: 4px 0 0; white-space: nowrap; }
     .extras-sub-row { gap: 16px !important; padding: 12px 6px 0 !important; }
@@ -754,8 +816,8 @@
   <div class="ts-wrap" style="margin-top:8px">
     <table class="ts">
       <colgroup>
-        <col class="c-date"/><col class="c-desc"/><col class="c-type"/>
-        <col class="c-call"/><col class="c-wrap"/><col class="c-days"/>
+        <col class="c-date"/><col class="c-job"/><col class="c-desc"/><col class="c-type"/>
+        <col class="c-rate"/><col class="c-call"/><col class="c-wrap"/><col class="c-days"/>
         <col class="c-hrs"/>
         <col class="c-oth"/><col class="c-otc"/>
         <col class="c-oth2"/><col class="c-otc2"/>
@@ -765,23 +827,25 @@
       </colgroup>
       <thead>
         <tr>
-          <th class="left" style="min-width:90px">Date</th>
+          <th class="left" style="min-width:94px">Date</th>
+          <th class="left" style="min-width:96px">Job</th>
           <th class="left" style="min-width:140px">Description</th>
           <th style="min-width:90px">Type</th>
-          <th style="min-width:60px">Call</th>
-          <th style="min-width:60px">Wrap</th>
-          <th style="min-width:40px">Days</th>
-          <th style="min-width:45px">Hrs</th>
-          <th class="group-ot" style="min-width:40px">×1.5 h</th>
-          <th class="group-ot" style="min-width:65px">×1.5 cost</th>
-          <th class="group-ot" style="min-width:40px">×2.0 h</th>
-          <th class="group-ot" style="min-width:65px">×2.0 cost</th>
-          <th class="group-ot" style="min-width:40px">×3.0 h</th>
-          <th class="group-ot" style="min-width:65px">×3.0 cost</th>
-          <th class="group-ta" style="min-width:40px">T/A h</th>
-          <th class="group-ta" style="min-width:65px">T/A cost</th>
-          <th class="group-amt" style="min-width:80px">Amount</th>
-          <th style="min-width:30px"></th>
+          <th style="min-width:68px">Rate</th>
+          <th style="min-width:52px">Call</th>
+          <th style="min-width:52px">Wrap</th>
+          <th style="min-width:34px">Days</th>
+          <th style="min-width:38px">Hrs</th>
+          <th class="group-ot" style="min-width:34px">×1.5 h</th>
+          <th class="group-ot" style="min-width:60px">×1.5 cost</th>
+          <th class="group-ot" style="min-width:34px">×2.0 h</th>
+          <th class="group-ot" style="min-width:60px">×2.0 cost</th>
+          <th class="group-ot" style="min-width:34px">×3.0 h</th>
+          <th class="group-ot" style="min-width:60px">×3.0 cost</th>
+          <th class="group-ta" style="min-width:44px">T/A h</th>
+          <th class="group-ta" style="min-width:58px">T/A cost</th>
+          <th class="group-amt" style="min-width:72px">Amount</th>
+          <th style="min-width:28px"></th>
         </tr>
       </thead>
       <tbody id="ts-body"></tbody>
@@ -824,49 +888,39 @@
       <thead>
         <tr>
           <th>Item <span class="extras-tag">Non-Taxable</span></th>
-          <th style="text-align:right;width:100px">Days</th>
-          <th style="text-align:right;width:120px">Rate (R/day)</th>
-          <th style="text-align:right;width:120px">Amount</th>
+          <th style="width:110px">Job</th>
+          <th style="text-align:right;width:84px">Days</th>
+          <th style="text-align:right;width:104px">Rate (R/day)</th>
+          <th style="text-align:right;width:110px">Amount</th>
+          <th style="width:30px"></th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td>Toolbox / Kit Rental</td>
-          <td style="text-align:right"><input id="e-toolbox-days" type="number" value="0" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right"><input id="e-toolbox-rate" type="number" value="250" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right" class="extras-amount" id="e-toolbox-amt">R 0</td>
-        </tr>
-        <tr>
-          <td>Vehicle / Car Allowance</td>
-          <td style="text-align:right"><input id="e-vehicle-days" type="number" value="7" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right"><input id="e-vehicle-rate" type="number" value="550" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right" class="extras-amount" id="e-vehicle-amt">R 0</td>
-        </tr>
-        <tr>
-          <td>Panel Van / Vehicle Hire</td>
-          <td style="text-align:right"><input id="e-van-days" type="number" value="16" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right"><input id="e-van-rate" type="number" value="1000" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right" class="extras-amount" id="e-van-amt">R 0</td>
-        </tr>
-        <tr>
-          <td>Cell Phone Allowance</td>
-          <td style="text-align:right"><input id="e-cell-days" type="number" value="19.25" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right"><input id="e-cell-rate" type="number" value="80" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right" class="extras-amount" id="e-cell-amt">R 0</td>
-        </tr>
-        <tr>
-          <td>Lunches / Meals</td>
-          <td style="text-align:right"><input id="e-meals-days" type="number" value="12.22" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right"><input id="e-meals-rate" type="number" value="100" min="0" oninput="recalcExtras()"/></td>
-          <td style="text-align:right" class="extras-amount" id="e-meals-amt">R 0</td>
-        </tr>
-      </tbody>
+      <tbody id="extras-body"></tbody>
     </table>
+    <button class="add-row-btn" onclick="addExtra()">+ ADD EXTRA LINE</button>
+    <datalist id="job-names"></datalist>
+    <datalist id="cpa-items">
+      <option value="Toolbox / Kit Rental"></option>
+      <option value="Standard Vehicle"></option>
+      <option value="Bakkie"></option>
+      <option value="Panel Van"></option>
+      <option value="Panel Van + Rails"></option>
+      <option value="Minibus"></option>
+      <option value="4X4 Single Cab"></option>
+      <option value="Loaders Box"></option>
+      <option value="Laptop / Computer Hire"></option>
+      <option value="Cell Phone Allowance"></option>
+      <option value="Lunches / Meals"></option>
+      <option value="Per Diem"></option>
+    </datalist>
     <div class="extras-sub-row" style="display:flex;justify-content:flex-end;padding:12px 12px 0;gap:40px;align-items:center">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim)">Extras Subtotal</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--green)" id="extras-sub">R 0</div>
     </div>
   </div>
+
+  <!-- PER-JOB SUMMARY (only rendered when rows carry job labels) -->
+  <div id="job-summary" style="display:none"></div>
 
   <!-- GRAND TOTAL -->
   <div class="subtotal-block" style="margin-top:2px">
@@ -903,6 +957,34 @@ const TYPES = ['Shoot Day','Premium Day','Pre-Production','Post-Production','Tra
 function getDailyRate() {
   return parseFloat(document.getElementById('daily-rate').value) || 0;
 }
+
+// Attribute-safe: a quote in a description or job name used to break the row.
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function fmtR(n) { return 'R ' + Math.round(n || 0).toLocaleString('en-ZA'); }
+
+// A row may carry its own rate — one invoice can cover two jobs at two rates.
+// Blank falls back to the Section 2 rate.
+function getRowRate(row) {
+  const r = parseFloat(row && row.rate);
+  return (isFinite(r) && r > 0) ? r : getDailyRate();
+}
+
+// Grouping is a view over a flat list, not a nested structure: rows and extras
+// stay plain arrays, so save files and the export loops are unaffected.
+function groupByJob(list) {
+  const order = [], map = new Map();
+  list.forEach((item, i) => {
+    const key = (item.job || '').trim();
+    if (!map.has(key)) { map.set(key, []); order.push(key); }
+    map.get(key).push({ item, i });
+  });
+  return order.map(name => ({ name, items: map.get(name) }));
+}
+function hasJobs(list) { return list.some(x => (x.job || '').trim() !== ''); }
 function getBaseHours() {
   return window._baseHours || 10;
 }
@@ -997,7 +1079,7 @@ function inputTime(el, rowIdx, field) {
 const r0 = n => Math.round(n || 0);
 
 function calcRow(row) {
-  const dr = getDailyRate();
+  const dr = getRowRate(row);
   const base = getBaseHours(); // 10 (standard) or 12 (deal) — OT threshold only
   const hr = dr / 10;    // hourly rate always daily rate ÷ 10
   const type = row.type;
@@ -1119,7 +1201,7 @@ function calcTurnaround(rows) {
       // call is on the same date so the gap is within that day (no overnight).
       // Only penalise if gap < 10 hours.
       const gapHrs = gapMins / 60;
-      const hr = getHourlyRate();
+      const hr = getRowRate(rows[i]) / 10;  // penalty is on the day being called back
 
       if (gapHrs < 10) {
         const shortfall = 10 - gapHrs;
@@ -1155,24 +1237,33 @@ function renderTable() {
   calcTurnaround(rows);
   const tbody = document.getElementById('ts-body');
   tbody.innerHTML = '';
+  const grouped = hasJobs(rows);
 
-  rows.forEach((row, i) => {
-    const c = calcRow(row);
-    const isTimeRow = ['Shoot Day','Premium Day','Pre-Production','Post-Production'].includes(row.type);
-    const isFlat = (row.type === 'Travel Day' || (!isTimeRow));
+  groupByJob(rows).forEach(g => {
+    if (grouped && g.name) {
+      const head = document.createElement('tr');
+      head.className = 'job-row';
+      head.innerHTML = `<td colspan="19">${esc(g.name)}</td>`;
+      tbody.appendChild(head);
+    }
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="left c-date" data-l="Date"><input type="date" value="${row.date}" onchange="rows[${i}].date=this.value;recalcAll()"/></td>
-      <td class="left c-desc" data-l="Description"><input type="text" value="${row.desc}" placeholder="Description" onchange="rows[${i}].desc=this.value;recalcAll()"/></td>
+    g.items.forEach(({ item: row, i }) => {
+      const c = calcRow(row);
+      const isTimeRow = ['Shoot Day','Premium Day','Pre-Production','Post-Production'].includes(row.type);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+      <td class="left c-date" data-l="Date"><input type="date" value="${esc(row.date)}" onchange="rows[${i}].date=this.value;recalcAll()"/></td>
+      <td class="left c-job" data-l="Job"><input type="text" list="job-names" value="${esc(row.job)}" placeholder="—" onchange="rows[${i}].job=this.value;recalcAll()"/></td>
+      <td class="left c-desc" data-l="Description"><input type="text" value="${esc(row.desc)}" placeholder="Description" onchange="rows[${i}].desc=this.value;recalcAll()"/></td>
       <td class="c-type" data-l="Type">
         <select onchange="rows[${i}].type=this.value;recalcAll()">
-          ${TYPES.map(t => `<option value="${t}" ${t===row.type?'selected':''}>${t}</option>`).join('')}
+          ${TYPES.map(t => `<option value="${esc(t)}" ${t===row.type?'selected':''}>${esc(t)}</option>`).join('')}
         </select>
       </td>
-      <td class="c-call" data-l="Call">${isTimeRow ? `<input class="time-text" value="${row.call||''}" placeholder="08:00" onblur="blurTime(this,${i},'call')"/>` : '<span class="calc-cell">—</span>'}</td>
-      <td class="c-wrap" data-l="Wrap">${isTimeRow ? `<input class="time-text" value="${row.wrap||''}" placeholder="17:00" onblur="blurTime(this,${i},'wrap')"/>` : '<span class="calc-cell">—</span>'}</td>
-      <td class="c-days" data-l="Days">${(row.type==='Pre-Production'||row.type==='Post-Production'||row.type==='Travel Day') ? `<input type="number" value="${row.days||1}" min="0" style="width:50px;text-align:center" onchange="rows[${i}].days=this.value;recalcAll()"/>` : '<span class="calc-cell has-value">1</span>'}</td>
+      <td class="c-rate" data-l="Rate"><input type="number" min="0" value="${esc(row.rate)}" placeholder="${Math.round(getDailyRate())}" title="Blank uses the Section 2 daily rate" onchange="rows[${i}].rate=this.value;recalcAll()"/></td>
+      <td class="c-call" data-l="Call">${isTimeRow ? `<input class="time-text" value="${esc(row.call)}" placeholder="08:00" onblur="blurTime(this,${i},'call')"/>` : '<span class="calc-cell">—</span>'}</td>
+      <td class="c-wrap" data-l="Wrap">${isTimeRow ? `<input class="time-text" value="${esc(row.wrap)}" placeholder="17:00" onblur="blurTime(this,${i},'wrap')"/>` : '<span class="calc-cell">—</span>'}</td>
+      <td class="c-days" data-l="Days">${(row.type==='Pre-Production'||row.type==='Post-Production'||row.type==='Travel Day') ? `<input type="number" value="${esc(row.days||1)}" min="0" style="width:50px;text-align:center" onchange="rows[${i}].days=this.value;recalcAll()"/>` : '<span class="calc-cell has-value">1</span>'}</td>
       <td class="calc-cell c-hrs ${c.totalHrs>0?'has-value':''}" data-l="Hours">${isTimeRow && c.totalHrs > 0 ? c.totalHrs.toFixed(1)+'h' : '—'}</td>
       <td class="calc-cell c-oth ${c.ot15h>0?'has-value':''}" data-l="×1.5 hrs">${c.ot15h > 0 ? c.ot15h.toFixed(2) : '—'}</td>
       <td class="calc-cell c-otc ${c.ot15c>0?'has-value':''}" data-l="×1.5 cost">${c.ot15c > 0 ? fmt(c.ot15c) : '—'}</td>
@@ -1185,14 +1276,36 @@ function renderTable() {
       <td class="calc-cell amount c-amt ${c.amount>0?'nonzero':''}" data-l="Amount">${fmt(c.amount)}</td>
       <td class="c-del"><button class="del-btn" onclick="delRow(${i})" aria-label="Delete row">×</button></td>
     `;
-    tbody.appendChild(tr);
+      tbody.appendChild(tr);
+    });
+
+    if (grouped && g.name) {
+      const fees = g.items.reduce((t, x) => t + calcRow(x.item).amount, 0);
+      const sub = document.createElement('tr');
+      sub.className = 'job-sub';
+      sub.innerHTML = `<td colspan="17">${esc(g.name)} — fees subtotal</td>`
+                    + `<td class="job-sub-val">${fmtR(fees)}</td><td></td>`;
+      tbody.appendChild(sub);
+    }
   });
 
+  renderJobNames();
   recalcTotals();
 }
 
+// Typing a job on one row offers it on every other row and extras line.
+function renderJobNames() {
+  const dl = document.getElementById('job-names');
+  if (!dl) return;
+  const names = [...new Set([...rows, ...extras].map(x => (x.job || '').trim()).filter(Boolean))];
+  dl.innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join('');
+}
+
 function addRow() {
-  rows.push({ id: nextId++, date: '', desc: '', type: 'Shoot Day', call: '07:00', wrap: '17:00', days: 1 });
+  const lastJob = rows.length ? (rows[rows.length - 1].job || '') : '';
+  const lastRate = rows.length ? (rows[rows.length - 1].rate || '') : '';
+  rows.push({ id: nextId++, date: '', desc: '', type: 'Shoot Day', call: '07:00', wrap: '17:00', days: 1,
+              job: lastJob, rate: lastRate });
   renderTable();
 }
 
@@ -1207,28 +1320,135 @@ function recalcAll() {
   renderTable();
 }
 
-// Section 4 extras — single source of truth. Add a line here plus a matching
-// <tr> in the extras table and it flows through totals, save, XLSX and PDF.
-// State keys are `${key}Days` / `${key}Rate`.
-const EXTRA_ITEMS = [
-  { key: 'toolbox', label: 'Toolbox / Kit Rental' },
-  { key: 'vehicle', label: 'Vehicle / Car Allowance' },
-  { key: 'van',     label: 'Panel Van / Vehicle Hire' },
-  { key: 'cell',    label: 'Cell Phone Allowance' },
-  { key: 'meals',   label: 'Lunches / Meals' },
-];
+// Section 4 extras are an editable list: a job needs whatever it needs, and
+// the CPA ratecard has far more lines than any one invoice uses.
+let extras = [];
+let nextExtraId = 1;
 
+// Ratecard figures, offered when an item is named and no rate is set yet.
+const CPA_RATES = {
+  'standard vehicle': 550, 'bakkie': 850, 'panel van': 1000,
+  'panel van + rails': 1200, 'minibus': 1600, '4x4 single cab': 850,
+  'loaders box': 650, 'cell phone allowance': 80, 'lunches / meals': 100,
+  'per diem': 220, 'toolbox / kit rental': 250,
+};
+
+function extraAmount(e) {
+  return Math.round((parseFloat(e.days) || 0) * (parseFloat(e.rate) || 0));
+}
+function getExtrasTotal() {
+  return extras.reduce((t, e) => t + extraAmount(e), 0);
+}
+
+// Fees and extras per job — the shape a job is actually quoted and checked in.
+function jobTotals() {
+  const names = [...new Set([...rows, ...extras].map(x => (x.job || '').trim()))];
+  return names.map(name => ({
+    name,
+    fees:   rows.filter(r => (r.job || '').trim() === name)
+                .reduce((t, r) => t + calcRow(r).amount, 0),
+    extras: extras.filter(e => (e.job || '').trim() === name)
+                  .reduce((t, e) => t + extraAmount(e), 0),
+  })).map(j => ({ ...j, total: j.fees + j.extras }));
+}
+
+function renderJobSummary() {
+  const box = document.getElementById('job-summary');
+  if (!box) return;
+  if (!hasJobs(rows) && !hasJobs(extras)) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const jobs = jobTotals();
+  box.style.display = '';
+  box.innerHTML = `
+    <div class="section-head"><div class="section-num">5</div>
+      <div class="section-title">Summary by Job</div><div class="section-line"></div></div>
+    <div class="panel" style="padding:0">
+      <table>
+        <thead><tr><th>Job</th><th>Fees</th><th>Extras</th><th>Total</th></tr></thead>
+        <tbody>
+          ${jobs.map(j => `<tr>
+            <td>${esc(j.name || 'Unassigned')}</td>
+            <td>${fmtR(j.fees)}</td>
+            <td class="js-extras">${fmtR(j.extras)}</td>
+            <td class="js-total">${fmtR(j.total)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderExtras() {
+  const tb = document.getElementById('extras-body');
+  if (!tb) return;
+  tb.innerHTML = '';
+  const grouped = hasJobs(extras);
+
+  groupByJob(extras).forEach(g => {
+    if (grouped && g.name) {
+      const head = document.createElement('tr');
+      head.className = 'job-row';
+      head.innerHTML = `<td colspan="6">${esc(g.name)}</td>`;
+      tb.appendChild(head);
+    }
+
+    g.items.forEach(({ item: e, i }) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td data-l="Item"><input type="text" list="cpa-items" value="${esc(e.label)}" placeholder="Item description" onchange="setExtraLabel(${i}, this.value)"/></td>
+        <td data-l="Job"><input type="text" list="job-names" value="${esc(e.job)}" placeholder="—" onchange="extras[${i}].job=this.value;renderExtras()"/></td>
+        <td style="text-align:right" data-l="Days"><input type="number" value="${esc(e.days)}" min="0" step="any" oninput="extras[${i}].days=this.value;recalcExtras()"/></td>
+        <td style="text-align:right" data-l="Rate"><input type="number" value="${esc(e.rate)}" min="0" step="any" oninput="extras[${i}].rate=this.value;recalcExtras()"/></td>
+        <td style="text-align:right" class="extras-amount" data-l="Amount" id="e-amt-${e.id}">${fmtR(extraAmount(e))}</td>
+        <td data-l=""><button class="del-btn" onclick="delExtra(${i})" aria-label="Delete line">×</button></td>
+      `;
+      tb.appendChild(tr);
+    });
+
+    if (grouped && g.name) {
+      const t = g.items.reduce((sum, x) => sum + extraAmount(x.item), 0);
+      const sub = document.createElement('tr');
+      sub.className = 'job-sub';
+      sub.innerHTML = `<td colspan="4">${esc(g.name)} — extras subtotal</td>`
+                    + `<td class="job-sub-val" data-xsub="${esc(g.name)}">${fmtR(t)}</td><td></td>`;
+      tb.appendChild(sub);
+    }
+  });
+
+  renderJobNames();
+  recalcExtras();
+}
+
+// Naming a ratecard item fills its rate in, as long as none was set.
+function setExtraLabel(i, value) {
+  extras[i].label = value;
+  const known = CPA_RATES[String(value).trim().toLowerCase()];
+  if (known && !(parseFloat(extras[i].rate) > 0)) extras[i].rate = known;
+  renderExtras();
+}
+
+function addExtra() {
+  const lastJob = extras.length ? (extras[extras.length - 1].job || '') : '';
+  extras.push({ id: nextExtraId++, label: '', job: lastJob, days: '', rate: '' });
+  renderExtras();
+}
+
+function delExtra(i) {
+  extras.splice(i, 1);
+  renderExtras();
+}
+
+// In-place refresh (no re-render) so typing in Days or Rate keeps focus.
 function recalcExtras() {
   triggerAutosave();
-  let extrasTotal = 0;
-  EXTRA_ITEMS.forEach(({key: k}) => {
-    const d = parseFloat(document.getElementById(`e-${k}-days`).value) || 0;
-    const r = parseFloat(document.getElementById(`e-${k}-rate`).value) || 0;
-    const amt = Math.round(d * r);
-    extrasTotal += amt;
-    document.getElementById(`e-${k}-amt`).textContent = amt > 0 ? fmt(amt) : 'R 0';
+  extras.forEach(e => {
+    const el = document.getElementById(`e-amt-${e.id}`);
+    if (el) el.textContent = fmtR(extraAmount(e));
   });
-  document.getElementById('extras-sub').textContent = fmt(extrasTotal) === '—' ? 'R 0' : fmt(extrasTotal);
+  document.querySelectorAll('[data-xsub]').forEach(el => {
+    const name = el.getAttribute('data-xsub');
+    el.textContent = fmtR(extras.filter(e => (e.job || '').trim() === name)
+                                .reduce((t, e) => t + extraAmount(e), 0));
+  });
+  document.getElementById('extras-sub').textContent = fmtR(getExtrasTotal());
   recalcTotals();
 }
 
@@ -1255,9 +1475,9 @@ function recalcTotals() {
   }
   const payeOn = getPayeEnabled();
   const paye = payeOn ? Math.round(taxable * 0.25) : 0;
-  const extras = getExtrasTotal();
+  const extrasTotal = getExtrasTotal();
   // CPA: Grand Total = (taxable - PAYE) + non-taxable extras
-  const grand = (taxable - paye) + extras;
+  const grand = (taxable - paye) + extrasTotal;
 
   // On an untaxed job the PAYE lines are hidden rather than shown as zero,
   // so the invoice does not imply a deduction that was never made.
@@ -1268,27 +1488,19 @@ function recalcTotals() {
   const gn = document.getElementById('grand-note');
   if (gn) gn.textContent = payeOn ? '(NET OF PAYE)' : '(NO PAYE DEDUCTED)';
 
-  const fmtR = n => 'R ' + Math.round(n).toLocaleString('en-ZA');
+  renderJobSummary();
+
   document.getElementById('st-taxable').textContent = fmtR(taxable);
   document.getElementById('st-total').textContent = fmtR(taxable);
   document.getElementById('st-paye').textContent = fmtR(paye);
   document.getElementById('grand-total').textContent = fmtR(grand);
   document.getElementById('bar-taxable').textContent = fmtR(taxable);
   document.getElementById('bar-paye').textContent = fmtR(paye);
-  document.getElementById('bar-extras').textContent = fmtR(extras);
+  document.getElementById('bar-extras').textContent = fmtR(extrasTotal);
   document.getElementById('bar-grand').textContent = fmtR(grand);
   if(document.getElementById('gt-taxable')) document.getElementById('gt-taxable').textContent = fmtR(taxable);
   if(document.getElementById('gt-paye'))    document.getElementById('gt-paye').textContent    = '− ' + fmtR(paye);
-  if(document.getElementById('gt-extras'))  document.getElementById('gt-extras').textContent  = fmtR(extras);
-}
-
-function getExtrasTotal() {
-  let t = 0;
-  EXTRA_ITEMS.forEach(({key: k}) => {
-    t += Math.round((parseFloat(document.getElementById(`e-${k}-days`).value)||0) *
-                    (parseFloat(document.getElementById(`e-${k}-rate`).value)||0));
-  });
-  return t;
+  if(document.getElementById('gt-extras'))  document.getElementById('gt-extras').textContent  = fmtR(extrasTotal);
 }
 
 // ──────────────────────────────────────────────
@@ -1457,14 +1669,30 @@ function exportToExcel() {
   const hrVal = dr / 10; // hourly rate always ÷10
 
   calcTurnaround(rows);
-  const firstDataRow = R;
-  const lastDataRow  = R + rows.length - 1;
+  const tsGrouped = hasJobs(rows);
+  const groupRanges = [];   // summed individually so subtotal rows never double-count
+  let bandIx = 0;
 
-  rows.forEach((row,ri)=>{
+  groupByJob(rows).forEach(g => {
+    if (tsGrouped && g.name) {
+      const gRates = [...new Set(g.items.map(x => getRowRate(x.item)))];
+      const title = g.name + (gRates.length === 1
+        ? ' — R' + gRates[0].toLocaleString('en-ZA') + '/day'
+        : ' — mixed day rates');
+      rowH[R-1]={hpt:17};
+      sc(ws,`A${R}`,title,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:10,bold:true,align:'left',indent:1});
+      for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_MID});
+      mR(merges,R,0,NCOLS-1); R++;
+    }
+
+    const gFirst = R;
+    g.items.forEach(({ item: row }) => {
     const c=calcRow(row);
+    const rowDr = getRowRate(row);
+    const rowHrVal = rowDr / 10;
     const warn=row.taWarn;
     rowH[R-1]={hpt:16};
-    const rowBg=ri%2===0?XL.WHITE:XL.ROW_ALT||'FFF5F3EF';
+    const rowBg=(bandIx++)%2===0?XL.WHITE:XL.ROW_ALT||'FFF5F3EF';
 
     // ── Columns A–C: date, description, days (static text/number) ──
     sc(ws,`A${R}`,row.date||'',{bgColor:rowBg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
@@ -1491,7 +1719,7 @@ function exportToExcel() {
       // 12hr deal = 2hrs ×1.5 then 4hrs ×2. Premium days have no ×2 cap.
       const isPrem  = row.type === 'Premium Day';
       const cap15   = (base === 12) ? 2 : 4;
-      const rowHr   = isPrem ? (drVal * 1.5) / 10 : hrVal;
+      const rowHr   = isPrem ? (rowDr * 1.5) / 10 : rowHrVal;
       const f15h = `=MIN(MAX(${wHrs}-${base},0),${cap15})`;
       const f2h  = (base === 12 && !isPrem)
         ? `=MIN(MAX(${wHrs}-${base}-${cap15},0),4)`
@@ -1531,21 +1759,35 @@ function exportToExcel() {
     const isTimeRowAmt = row.type==='Shoot Day' && row.call && row.wrap;
     let amtFormula;
     if(row.type==='Pre-Production'||row.type==='Post-Production') {
-      amtFormula = `=ROUND(C${R}*${drVal},0)+K${R}`; // days × daily rate + any T/A
+      amtFormula = `=ROUND(C${R}*${rowDr},0)+K${R}`; // days × daily rate + any T/A
     } else if(row.type==='Travel Day') {
-      amtFormula = `=ROUND(C${R}*${drVal}*0.5,0)`;
+      amtFormula = `=ROUND(C${R}*${rowDr}*0.5,0)`;
     } else if(row.type==='Premium Day') {
-      amtFormula = `=ROUND(${drVal}*1.5,0)+E${R}+G${R}+I${R}+K${R}`;
+      amtFormula = `=ROUND(${rowDr}*1.5,0)+E${R}+G${R}+I${R}+K${R}`;
     } else if(isTimeRowAmt) {
-      amtFormula = `=ROUND(${drVal},0)+E${R}+G${R}+I${R}+K${R}`; // base + OT + T/A
+      amtFormula = `=ROUND(${rowDr},0)+E${R}+G${R}+I${R}+K${R}`; // base + OT + T/A
     } else {
-      amtFormula = `=ROUND(C${R}*${drVal},0)`;
+      amtFormula = `=ROUND(C${R}*${rowDr},0)`;
     }
     const amtIsZero = c.amount===0;
     sc(ws,`M${R}`,amtFormula,{bgColor:XL.AMBER_BG,color:amtIsZero?XL.TEXT_MUTED:XL.AMBER_DARK,sz:11,bold:!amtIsZero,align:'right',numFmt:'"R "#,##0',border:'all'});
 
     R++;
+    });
+    const gLast = R - 1;
+    if (gLast >= gFirst) groupRanges.push(`M${gFirst}:M${gLast}`);
+
+    if (tsGrouped && g.name && gLast >= gFirst) {
+      rowH[R-1]={hpt:15}; fillRow(ws,R,NCOLS,{bgColor:XL.SUB_BG});
+      sc(ws,`K${R}`,g.name+' — fees subtotal',{bgColor:XL.SUB_BG,color:XL.TEXT_DIM,sz:9,italic:true,align:'right'});
+      sc(ws,`M${R}`,`=SUM(M${gFirst}:M${gLast})`,{bgColor:XL.SUB_BG,color:XL.AMBER_DARK,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+      mR(merges,R,10,11); R++;
+    }
   });
+
+  const feesFormula = groupRanges.length
+    ? '=' + groupRanges.map(r => `SUM(${r})`).join('+')
+    : '=0';
 
   // ── Totals with SUM formulas ─────────────────────────────────────────────
   let taTotal=0, taCount=0;
@@ -1554,7 +1796,7 @@ function exportToExcel() {
   if(taTotal>0){
     rowH[R-1]={hpt:15}; fillRow(ws,R,NCOLS,{bgColor:'FFFFFDF5'});
     sc(ws,`J${R}`,'T/A Penalties ('+taCount+' violation'+(taCount>1?'s':'')+')',{bgColor:'FFFFFDF5',color:XL.WARN_FG,sz:9,italic:true,align:'right'});
-    sc(ws,`M${R}`,`=SUM(K${firstDataRow}:K${lastDataRow})`,{bgColor:XL.WARN_BG,color:XL.WARN_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+    sc(ws,`M${R}`,'='+groupRanges.map(r=>`SUM(${r.replace(/M/g,'K')})`).join('+'),{bgColor:XL.WARN_BG,color:XL.WARN_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
     mR(merges,R,9,11); R++;
   }
 
@@ -1563,7 +1805,7 @@ function exportToExcel() {
   const subtotalRow = R;
   rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.SUB_BG});
   sc(ws,`K${R}`,'SUBTOTAL — TAXABLE',{bgColor:XL.SUB_BG,color:XL.TEXT_DIM,sz:9,align:'right'});
-  sc(ws,`M${R}`,`=SUM(M${firstDataRow}:M${lastDataRow})`,{bgColor:XL.SUB_BG,color:XL.AMBER_DARK,sz:11,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  sc(ws,`M${R}`,feesFormula,{bgColor:XL.SUB_BG,color:XL.AMBER_DARK,sz:11,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
   mR(merges,R,10,11); R++;
 
   const totalRow = R;
@@ -1604,29 +1846,48 @@ function exportToExcel() {
   });
   mR(merges,R,0,1); mR(merges,R,2,3); mR(merges,R,4,11); R++;
 
-  const extItems=EXTRA_ITEMS.map(it=>({
-    label:it.label, days:v(`e-${it.key}-days`), rate:v(`e-${it.key}-rate`)
-  }));
+  const extItems=extras.map(e=>({ label:e.label||'', job:(e.job||'').trim(), days:e.days, rate:e.rate }));
   let extTotal=0;
-  const firstExtRow = R;
-  extItems.forEach((e,ei)=>{
-    const d=parseFloat(e.days)||0,r=parseFloat(e.rate)||0,a=d*r;
-    extTotal+=a;
-    rowH[R-1]={hpt:16};
-    const bg=ei%2===0?XL.GREEN_BG:XL.WHITE;
-    fillRow(ws,R,NCOLS,{bgColor:bg,border:'all'});
-    sc(ws,`A${R}`,e.label,{bgColor:bg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
-    sc(ws,`C${R}`,d,{bgColor:bg,color:d>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',border:'all'});
-    sc(ws,`E${R}`,r,{bgColor:bg,color:r>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
-    sc(ws,`M${R}`,`=ROUND(C${R}*E${R},0)`,{bgColor:bg,color:a>0?XL.GREEN_FG:XL.TEXT_MUTED,sz:10,bold:a>0,align:'right',numFmt:'"R "#,##0',border:'all'});
-    mR(merges,R,0,1); mR(merges,R,2,3); mR(merges,R,4,11); R++;
-  });
-  const lastExtRow = R - 1;
-  const extSubRow = R;
+  let extBand=0;
+  const extRanges=[];
+  const extGrouped = extItems.some(e => e.job);
 
+  groupByJob(extItems).forEach(g => {
+    if (extGrouped && g.name) {
+      rowH[R-1]={hpt:17};
+      sc(ws,`A${R}`,g.name,{bgColor:XL.AMBER_MID,color:XL.AMBER_DARK,sz:10,bold:true,align:'left',indent:1});
+      for(let c=1;c<NCOLS;c++) sc(ws,`${cL(c)}${R}`,'',{bgColor:XL.AMBER_MID});
+      mR(merges,R,0,NCOLS-1); R++;
+    }
+
+    const gFirst = R;
+    g.items.forEach(({ item: e }) => {
+      const d=parseFloat(e.days)||0,r=parseFloat(e.rate)||0,a=Math.round(d*r);
+      extTotal+=a;
+      rowH[R-1]={hpt:16};
+      const bg=(extBand++)%2===0?XL.GREEN_BG:XL.WHITE;
+      fillRow(ws,R,NCOLS,{bgColor:bg,border:'all'});
+      sc(ws,`A${R}`,e.label,{bgColor:bg,color:XL.TEXT,sz:10,align:'left',indent:1,border:'all'});
+      sc(ws,`C${R}`,d,{bgColor:bg,color:d>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',border:'all'});
+      sc(ws,`E${R}`,r,{bgColor:bg,color:r>0?XL.TEXT:XL.TEXT_MUTED,sz:10,align:'center',numFmt:'"R "#,##0',border:'all'});
+      sc(ws,`M${R}`,`=ROUND(C${R}*E${R},0)`,{bgColor:bg,color:a>0?XL.GREEN_FG:XL.TEXT_MUTED,sz:10,bold:a>0,align:'right',numFmt:'"R "#,##0',border:'all'});
+      mR(merges,R,0,1); mR(merges,R,2,3); mR(merges,R,4,11); R++;
+    });
+    const gLast = R - 1;
+    if (gLast >= gFirst) extRanges.push(`M${gFirst}:M${gLast}`);
+
+    if (extGrouped && g.name && gLast >= gFirst) {
+      rowH[R-1]={hpt:15}; fillRow(ws,R,NCOLS,{bgColor:XL.GREEN_BG});
+      sc(ws,`K${R}`,g.name+' — extras subtotal',{bgColor:XL.GREEN_BG,color:XL.TEXT_DIM,sz:9,italic:true,align:'right'});
+      sc(ws,`M${R}`,`=SUM(M${gFirst}:M${gLast})`,{bgColor:XL.GREEN_BG,color:XL.GREEN_FG,sz:10,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+      mR(merges,R,10,11); R++;
+    }
+  });
+
+  const extSubRow = R;
   rowH[R-1]={hpt:16}; fillRow(ws,R,NCOLS,{bgColor:XL.GREEN_HEAD});
   sc(ws,`K${R}`,'EXTRAS SUBTOTAL',{bgColor:XL.GREEN_HEAD,color:XL.GREEN_FG,sz:9,bold:true,align:'right'});
-  sc(ws,`M${R}`,`=SUM(M${firstExtRow}:M${lastExtRow})`,{bgColor:XL.GREEN_HEAD,color:XL.GREEN_FG,sz:11,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
+  sc(ws,`M${R}`,extRanges.length?'='+extRanges.map(r=>`SUM(${r})`).join('+'):'=0',{bgColor:XL.GREEN_HEAD,color:XL.GREEN_FG,sz:11,bold:true,align:'right',numFmt:'"R "#,##0',border:'all'});
   mR(merges,R,10,11); R++;
 
   // Grand Total — formula referencing net taxable + extras subtotal
@@ -1724,11 +1985,7 @@ function gatherState() {
       baseHours: getBaseHours(),
     payeEnabled: getPayeEnabled(),
     rows: rows,
-    extras: EXTRA_ITEMS.reduce((o, it) => {
-      o[it.key + 'Days'] = document.getElementById(`e-${it.key}-days`).value;
-      o[it.key + 'Rate'] = document.getElementById(`e-${it.key}-rate`).value;
-      return o;
-    }, {})
+    extras: extras.map(e => ({ ...e }))
   };
 }
 
@@ -1746,20 +2003,30 @@ function applyState(state) {
     'bank-name': h.bankName, 'bank-branch': h.bankBranch, 'bank-acc': h.bankAcc,
     'daily-rate': state.dailyRate,
   };
-  EXTRA_ITEMS.forEach(it => {
-    fields[`e-${it.key}-days`] = state.extras?.[it.key + 'Days'];
-    fields[`e-${it.key}-rate`] = state.extras?.[it.key + 'Rate'];
-  });
   Object.entries(fields).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (el && val !== undefined && val !== null) el.value = val;
   });
   rows = (state.rows || []).map(r => ({ ...r }));
   nextId = rows.length ? Math.max(...rows.map(r => r.id || 0)) + 1 : 1;
+
+  // Extras are a list now. Sessions saved with the old fixed five still load.
+  if (Array.isArray(state.extras)) {
+    extras = state.extras.map(e => ({ ...e, id: nextExtraId++ }));
+  } else if (state.extras && typeof state.extras === 'object') {
+    extras = [
+      ['toolbox', 'Toolbox / Kit Rental'], ['vehicle', 'Vehicle / Car Allowance'],
+      ['van', 'Panel Van / Vehicle Hire'], ['cell', 'Cell Phone Allowance'],
+      ['meals', 'Lunches / Meals'],
+    ].map(([k, label]) => ({
+      id: nextExtraId++, label, job: '',
+      days: state.extras[k + 'Days'] ?? '', rate: state.extras[k + 'Rate'] ?? '',
+    }));
+  }
   if (state.baseHours) setBaseHours(state.baseHours);
   if (state.payeEnabled !== undefined) setPayeEnabled(state.payeEnabled);
   renderTable();
-  recalcExtras();
+  renderExtras();
 }
 
 // ──────────────────────────────────────────────
@@ -2060,12 +2327,25 @@ window.addEventListener('DOMContentLoaded', () => {
   // Hook inv-date and job-name changes to regenerate invoice number
   document.getElementById('inv-date').addEventListener('change', generateInvoiceNumber);
   document.getElementById('job-name').addEventListener('input', autoInvoiceNumber);
-  // Add a couple of starter rows
+  // Worked example — the Chicken Licken invoice: two jobs at two day rates.
+  // Stills rows leave Rate blank so they inherit the Section 2 rate (R2 000);
+  // the TVC rows override it at R2 200.
   rows = [
-    { id: nextId++, date: '', desc: 'Pre-Production', type: 'Pre-Production', call: '', wrap: '', days: 2 },
-    { id: nextId++, date: '', desc: 'Shoot Day 1', type: 'Shoot Day', call: '06:00', wrap: '18:00', days: 1 },
-    { id: nextId++, date: '', desc: 'Shoot Day 2', type: 'Shoot Day', call: '06:30', wrap: '21:00', days: 1 },
+    { id: nextId++, date: '2026-11-09', job: 'Stills', desc: 'Stills day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+    { id: nextId++, date: '2026-11-10', job: 'Stills', desc: 'Stills day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+    { id: nextId++, date: '2026-11-16', job: 'TVC', desc: 'Office / prep — no vehicle', type: 'Pre-Production', call: '', wrap: '', days: 4, rate: 2200 },
+    { id: nextId++, date: '2026-11-23', job: 'TVC', desc: 'Shoot day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
+    { id: nextId++, date: '2026-11-24', job: 'TVC', desc: 'Shoot day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
+    { id: nextId++, date: '2026-11-25', job: 'TVC', desc: 'Shoot day 3', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
+    { id: nextId++, date: '2026-11-26', job: 'TVC', desc: 'Shoot day 4', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
+    { id: nextId++, date: '2026-11-27', job: 'TVC', desc: 'Shoot day 5', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
   ];
+  extras = [
+    { id: nextExtraId++, label: 'Vehicle — loaded (bakkie)', job: 'TVC', days: 2,   rate: 850 },
+    { id: nextExtraId++, label: 'Vehicle — no loading',      job: 'TVC', days: 2.5, rate: 550 },
+    { id: nextExtraId++, label: 'Laptop / Computer Hire',    job: 'TVC', days: 8,   rate: 300 },
+  ];
+  setPayeEnabled(false);  // this job is invoiced gross, as quoted
   // Try to restore autosaved session
   try {
     const saved = localStorage.getItem('cpa_invoice_autosave');
@@ -2079,7 +2359,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   } catch(e) {}
   renderTable();
-  recalcExtras();
+  renderExtras();
 });
 </script>
 
@@ -2122,16 +2402,18 @@ function exportPDF() {
 
   let taxable = 0;
   const rowsCalc = rows.map(r => { const c = calcRow(r); taxable += c.amount; return {row:r,c}; });
+  const pdfGrouped = hasJobs(rows);
   const payeOn = getPayeEnabled();
   const paye   = payeOn ? Math.round(taxable * 0.25) : 0;
-  const extras = getExtrasTotal();
-  const grand  = (taxable - paye) + extras;
+  const extrasTotal = getExtrasTotal();
+  const grand  = (taxable - paye) + extrasTotal;
 
-  const extItems = EXTRA_ITEMS.map(it => ({
-    label: it.label,
-    days:  parseFloat(document.getElementById('e-'+it.key+'-days').value)||0,
-    rate:  parseFloat(document.getElementById('e-'+it.key+'-rate').value)||0,
-  })).map(e => ({...e, amount: e.days * e.rate}));
+  const extItems = extras.map(e => ({
+    label: e.label || '',
+    job:   (e.job || '').trim(),
+    days:  parseFloat(e.days) || 0,
+    rate:  parseFloat(e.rate) || 0,
+  })).map(e => ({ ...e, amount: Math.round(e.days * e.rate) }));
 
   const gv = id => document.getElementById(id)?.value || '';
 
@@ -2204,6 +2486,11 @@ function exportPDF() {
   .tr.net { background:#f8f4ec; }
   .tr.net .tv { color:#8b6010; }
 
+  tr.jrow td { background:#f4ecd8; color:#8a6516; font-weight:700; font-size:7pt; letter-spacing:0.6px; padding:3px 5px !important; text-transform:uppercase; text-align:left !important; }
+  tr.jsub td { background:#faf7f0; color:#777; font-style:italic; font-size:7pt; padding:2.5px 5px !important; text-align:right !important; }
+  tr.jsub td.amt { color:#111; font-weight:700; font-style:normal; }
+  .ext-job { background:#f4ecd8; color:#8a6516; font-weight:700; font-size:7pt; letter-spacing:0.6px; padding:2.5px 5px; text-transform:uppercase; }
+  .ext-jsub { display:flex; justify-content:space-between; padding:2.5px 5px; background:#faf7f0; font-size:7pt; color:#777; font-style:italic; border-bottom:1px solid #e8ede8; }
   .ext-head { display:grid; grid-template-columns:1fr 60px 80px 80px; padding:2px 5px; background:#1a1a1a; font-size:6.5pt; letter-spacing:0.3px; color:#aaa; font-family:'IBM Plex Mono',monospace; }
   .ext-row { display:grid; grid-template-columns:1fr 60px 80px 80px; padding:2.5px 5px; border-bottom:1px solid #e8ede8; font-size:7.5pt; }
   .ext-row:nth-child(odd) { background:#f8fdf9; }
@@ -2271,7 +2558,10 @@ function exportPDF() {
     <th class="amt" style="width:50px">Amount</th>
   </tr></thead>
   <tbody>
-    ${rowsCalc.map(({row,c})=>'<tr>'+
+    ${rowsCalc.map(({row,c},ri)=>(
+      (pdfGrouped && (ri===0 || (rowsCalc[ri-1].row.job||'')!==(row.job||'')) && (row.job||''))
+        ? '<tr class="jrow"><td colspan="15">'+esc(row.job)+'</td></tr>' : '')
+      +'<tr>'+
       '<td class="left">'+(row.date||'&mdash;')+'</td>'+
       '<td class="left">'+(row.desc||row.type)+'</td>'+
       '<td>'+c.days+'</td>'+
@@ -2287,7 +2577,12 @@ function exportPDF() {
       '<td class="'+(row.taWarn?'warn':'dim')+'">'+(c.tah>0?c.tah.toFixed(2)+'h':'&mdash;')+(row.taWarn?' <b>'+row.taWarn+'</b>':'')+'</td>'+
       '<td class="'+(c.tac>0?'':'dim')+'">'+(fmtC(c.tac))+'</td>'+
       '<td class="amt">'+fmtR(c.amount)+'</td>'+
-    '</tr>').join('')}
+    '</tr>'
+      +((pdfGrouped && (row.job||'') && (ri===rowsCalc.length-1 || (rowsCalc[ri+1].row.job||'')!==(row.job||'')))
+        ? '<tr class="jsub"><td colspan="14">'+esc(row.job)+' &mdash; fees subtotal</td><td class="amt">'
+          + fmtR(rowsCalc.filter(x=>(x.row.job||'')===(row.job||'')).reduce((t,x)=>t+x.c.amount,0))+'</td></tr>'
+        : '')
+    ).join('')}
   </tbody>
 </table>
 
@@ -2301,11 +2596,23 @@ function exportPDF() {
 
 <div class="sec" style="margin-top:6px"><div class="sec-n">4</div><div class="sec-t">Extras — Non-Taxable Allowances</div><div class="sec-l"></div></div>
 <div class="ext-head"><span>Item</span><span style="text-align:right">Days</span><span style="text-align:right">Rate R/day</span><span style="text-align:right">Amount</span></div>
-${extItems.map(e=>'<div class="ext-row"><span>'+e.label+'</span><span class="er">'+(e.days||0)+'</span><span class="er">'+fmtR(e.rate)+'</span><span class="'+(e.amount>0?'eg':'dim')+'">'+(e.amount>0?fmtR(e.amount):'&mdash;')+'</span></div>').join('')}
-<div class="ext-sub"><span>Extras Subtotal</span><span>${fmtR(extras)}</span></div>
+${extItems.map((e,ei)=>(
+  (e.job && (ei===0 || (extItems[ei-1].job||'')!==(e.job||''))) ? '<div class="ext-job">'+esc(e.job)+'</div>' : '')
+  +'<div class="ext-row"><span>'+e.label+'</span><span class="er">'+(e.days||0)+'</span><span class="er">'+fmtR(e.rate)+'</span><span class="'+(e.amount>0?'eg':'dim')+'">'+(e.amount>0?fmtR(e.amount):'&mdash;')+'</span></div>'
+  +((e.job && (ei===extItems.length-1 || (extItems[ei+1].job||'')!==(e.job||'')))
+    ? '<div class="ext-jsub"><span>'+esc(e.job)+' &mdash; extras subtotal</span><span>'
+      + fmtR(extItems.filter(x=>(x.job||'')===(e.job||'')).reduce((t,x)=>t+x.amount,0))+'</span></div>'
+    : '')
+).join('')}
+<div class="ext-sub"><span>Extras Subtotal</span><span>${fmtR(extrasTotal)}</span></div>
 
+${pdfGrouped ? `
+<div class="sec" style="margin-top:6px"><div class="sec-n">5</div><div class="sec-t">Summary by Job</div><div class="sec-l"></div></div>
+<div class="ext-head"><span>Job</span><span style="text-align:right">Fees</span><span style="text-align:right">Extras</span><span style="text-align:right">Total</span></div>
+${jobTotals().map(j => '<div class="ext-row"><span>'+esc(j.name||'Unassigned')+'</span><span class="er">'+fmtR(j.fees)+'</span><span class="er eg">'+fmtR(j.extras)+'</span><span class="eg" style="text-align:right;font-weight:700">'+fmtR(j.total)+'</span></div>').join('')}
+` : ''}
 <div class="grand"><span class="gl">Grand Total</span><span class="gv">${fmtR(grand)}</span></div>
-<div class="gn">${payeOn ? 'Net Taxable' : 'Fees'} ${fmtR(taxable - paye)} + Non-Taxable Extras ${fmtR(extras)} &nbsp;·&nbsp; ${payeOn ? 'Net of PAYE' : 'No PAYE deducted on this job'}</div>
+<div class="gn">${payeOn ? 'Net Taxable' : 'Fees'} ${fmtR(taxable - paye)} + Non-Taxable Extras ${fmtR(extrasTotal)} &nbsp;·&nbsp; ${payeOn ? 'Net of PAYE' : 'No PAYE deducted on this job'}</div>
 
 <div class="footer">All calculations per CPA guidelines &nbsp;·&nbsp; Base day = ${getBaseHours()}hrs ${getBaseHours()===12?'(12hr deal)':''} &nbsp;·&nbsp; ${payeOn ? 'PAYE deducted by production' : 'No PAYE deducted'}</div>
 </body></html>`;
