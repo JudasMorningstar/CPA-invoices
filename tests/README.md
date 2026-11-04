@@ -38,7 +38,7 @@ Output lands in `tests/out/` and is ignored by git.
 
 | Spec | Covers |
 | --- | --- |
-| `reconciliation` | The Chicken Licken invoice — two jobs at two day rates, three hire lines, invoiced gross — must reach R29 275 in the app, the PDF and the workbook's evaluated formulas, with the per-job split intact. |
+| `reconciliation` | A two-section invoice — two jobs at two day rates, three hire lines, invoiced gross — must reach R29 275 in the app, the PDF and the workbook's evaluated formulas, with the per-job split intact. |
 | `money` | Randomised invoices: every printed column foots to its printed total, per-job subtotals never exceed the whole, PAYE is 25% or nothing, and the workbook agrees with the app. |
 | `tax` | The PAYE switch reaches all four surfaces. With it off the PAYE lines are *hidden*, not zeroed, so the invoice never implies a deduction that was not made. |
 | `sections` | Sections are a shared job label, not a second structure: adding, renaming, re-rating and removing one must keep its rows and extras together and move the totals with them. |
