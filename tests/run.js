@@ -6,7 +6,7 @@ const { pathToFileURL } = require('url');
 const { launch, resolveChromium } = require('./lib/browser');
 const { createChecks } = require('./lib/assert');
 
-const INVOICE = path.resolve(__dirname, '..', 'PropLens_Invoice_2.html');
+const INVOICE = path.resolve(__dirname, '..', 'index.html');
 const OUT_DIR = path.join(__dirname, 'out');
 const SPEC_DIR = path.join(__dirname, 'specs');
 

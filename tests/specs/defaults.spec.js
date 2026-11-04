@@ -18,7 +18,7 @@ module.exports = {
   name: 'defaults — the template ships blank and self-reconciles',
   async run({ browser, fileUrl, checks }) {
     // Read the source directly: a prefill could be in markup or in the init.
-    const src = fs.readFileSync(path.resolve(__dirname, '..', '..', 'PropLens_Invoice_2.html'), 'utf8');
+    const src = fs.readFileSync(path.resolve(__dirname, '..', '..', 'index.html'), 'utf8');
     const prefilled = IDENTITY_FIELDS.filter(id => {
       const tag = new RegExp(`<input[^>]*id="${id}"[^>]*>`).exec(src);
       if (!tag) return false;
