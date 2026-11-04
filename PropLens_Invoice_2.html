@@ -454,6 +454,13 @@
   }
 
   /* SAVE/LOAD BUTTONS */
+  #new-btn {
+    background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+    font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px;
+    padding: 7px 16px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+  #new-btn:hover { border-color: var(--amber-dim); color: var(--amber); }
   #save-btn {
     background: transparent; color: var(--amber); border: 1px solid var(--amber-dim);
     font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px;
@@ -502,28 +509,30 @@
      ══════════════════════════════════════════════ */
 
   /* The totals bar sheds content in measured stages. Laid out in full it needs
-     1794px, so it has never fitted a laptop screen — each tier below drops the
-     least useful thing left until what remains fits on one 48px line:
-       full 1794  ·  no rules/caption 1665  ·  short buttons 1199  ·  total only 859 */
-  @media (max-width: 1794px) {
+     1546px, so it has never fitted a laptop screen — each tier below drops the
+     least useful thing left until what remains fits on one 48px line. Measured
+     widths, re-checked whenever a button is added:
+       full 1546  ·  no rules/caption 1403  ·  short buttons 989  ·  total only 754 */
+  @media (max-width: 1560px) {
     #totals-bar { gap: 0 14px; padding: 0 16px; }
     .bar-divider { display: none; }
     .bar-brand { margin-right: 8px; }
     #autosave-label { display: none; }
   }
 
-  @media (max-width: 1664px) {
+  @media (max-width: 1420px) {
     /* Icons + full words no longer fit; keep the words. */
-    #save-btn, #load-btn, #export-btn, #pdf-btn {
+    #new-btn, #save-btn, #load-btn, #export-btn, #pdf-btn {
       font-size: 0; letter-spacing: 0; padding: 8px 14px;
     }
+    #new-btn::after    { content: "NEW";  font-size: 15px; letter-spacing: 2px; }
     #save-btn::after   { content: "SAVE"; font-size: 15px; letter-spacing: 2px; }
     #load-btn::after   { content: "LOAD"; font-size: 15px; letter-spacing: 2px; }
     #export-btn::after { content: "XLSX"; font-size: 15px; letter-spacing: 2px; }
     #pdf-btn::after    { content: "PDF";  font-size: 15px; letter-spacing: 2px; }
   }
 
-  @media (max-width: 1198px) {
+  @media (max-width: 1000px) {
     /* Taxable / PAYE / Extras stay available in full in Section 4 — in the bar
        only the grand total survives. */
     .bar-item:not(.bar-item-grand) { display: none; }
@@ -552,12 +561,12 @@
        instead of letting flex-wrap strand one or two of them beside the total. */
     .bar-spacer { display: block; order: 3; flex: 0 0 100%; height: 0; }
     .bar-autosave { order: 4; margin-right: 0 !important; flex: 0 0 auto; }
-    #save-btn, #load-btn, #export-btn, #pdf-btn {
-      order: 5; flex: 1 1 auto; min-width: 68px;
+    #new-btn, #save-btn, #load-btn, #export-btn, #pdf-btn {
+      order: 5; flex: 1 1 auto; min-width: 60px;
       padding: 10px 4px;
     }
-    #save-btn::after, #load-btn::after,
-    #export-btn::after, #pdf-btn::after { font-size: 13px; letter-spacing: 1.5px; }
+    #new-btn::after, #save-btn::after, #load-btn::after,
+    #export-btn::after, #pdf-btn::after { font-size: 12px; letter-spacing: 1px; }
 
     /* ── forms ── */
     .grid-2, .grid-3 { grid-template-columns: 1fr; }
@@ -744,6 +753,7 @@
     <div id="autosave-dot"></div>
     <span id="autosave-label">AUTOSAVED</span>
   </div>
+  <button id="new-btn" onclick="newInvoice()" title="Clear the timesheet and extras, keeping your details, the production company and banking">✚ NEW INVOICE</button>
   <button id="save-btn" onclick="saveSession()" title="Save all data as a .cpa file you can reload later">💾 SAVE SESSION</button>
   <input type="file" id="load-input" accept=".cpa,.json" onchange="loadSession(event)"/>
   <button id="load-btn" onclick="document.getElementById('load-input').click()" title="Load a previously saved .cpa session file">📂 LOAD SESSION</button>
@@ -2174,6 +2184,38 @@ function applyState(state) {
   if (state.payeEnabled !== undefined) setPayeEnabled(state.payeEnabled);
   renderTable();
   renderExtras();
+}
+
+// Start a fresh invoice. What identifies *you* and who you bill is kept —
+// retyping banking details every job is how wrong account numbers happen.
+// What belongs to one job is cleared.
+function newInvoice() {
+  const dayCount = rows.length, extraCount = extras.length;
+  const bits = [];
+  if (dayCount) bits.push(dayCount + (dayCount === 1 ? ' day' : ' days'));
+  if (extraCount) bits.push(extraCount + (extraCount === 1 ? ' extras line' : ' extras lines'));
+  const losing = bits.length ? bits.join(' and ') : 'nothing yet';
+  if (!confirm(
+    'Start a new invoice?\n\n'
+    + 'Cleared: the timesheet (' + losing + '), the job name and the invoice number.\n'
+    + 'Kept: your details, the production company, banking, the day rate and the PAYE setting.\n\n'
+    + 'Save the current invoice first if you still need it.'
+  )) return;
+
+  rows = [];          // starts empty: a seeded day would bill a full day rate
+  extras = [];
+  nextId = 1;
+  nextExtraId = 1;
+
+  document.getElementById('job-name').value = '';
+  document.getElementById('inv-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('inv-number').value = '';
+  generateInvoiceNumber();
+
+  renderTable();
+  renderExtras();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('New invoice started — your details and banking were kept', 'success');
 }
 
 // ──────────────────────────────────────────────
