@@ -77,13 +77,13 @@ module.exports = {
       ${IN_PAGE}
       // Fill in the things a crew member should never have to retype.
       const set = (id, v) => { document.getElementById(id).value = v; };
-      set('to-name', 'Star Films'); set('to-addr', '8 Stirling Street');
-      set('to-reg', '2015/086655/07'); set('to-vat', '4110269125');
-      set('from-name', 'Junade'); set('from-designation', 'Prop Master');
-      set('from-id', '8001015009087'); set('from-contact', '082 000 0000');
-      set('from-tax', '1234567890'); set('bank-name', 'FNB');
-      set('bank-branch', '250655'); set('bank-acc', '62000000000');
-      set('job-name', 'Chicken Licken'); set('daily-rate', 2200);
+      set('to-name', 'Example Productions'); set('to-addr', '1 Example Road, Testville');
+      set('to-reg', '2020/000000/07'); set('to-vat', '4000000000');
+      set('from-name', 'Test Crew'); set('from-designation', 'Prop Master');
+      set('from-id', '0000000000000'); set('from-contact', '000 000 0000');
+      set('from-tax', '0000000000'); set('bank-name', 'Example Bank');
+      set('bank-branch', '000000'); set('bank-acc', '00000000000');
+      set('job-name', 'Example Job'); set('daily-rate', 2200);
       setPayeEnabled(false);
       rows = [{ id: 1, date: '2026-11-09', job: 'Stills', desc: 'd', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 }];
       extras = [{ id: 1, label: 'Laptop', job: 'Stills', days: 8, rate: 300 }];
@@ -121,18 +121,18 @@ module.exports = {
     checks.ok('a fresh invoice number is generated', !!fresh.invNumber && fresh.invNumber !== fresh.priorNumber);
 
     const k = fresh.kept;
-    checks.equal('production company kept', k.toName, 'Star Films');
-    checks.equal('company address kept', k.toAddr, '8 Stirling Street');
-    checks.equal('company registration kept', k.toReg, '2015/086655/07');
-    checks.equal('company VAT kept', k.toVat, '4110269125');
-    checks.equal('crew name kept', k.fromName, 'Junade');
+    checks.equal('production company kept', k.toName, 'Example Productions');
+    checks.equal('company address kept', k.toAddr, '1 Example Road, Testville');
+    checks.equal('company registration kept', k.toReg, '2020/000000/07');
+    checks.equal('company VAT kept', k.toVat, '4000000000');
+    checks.equal('crew name kept', k.fromName, 'Test Crew');
     checks.equal('crew role kept', k.fromRole, 'Prop Master');
-    checks.equal('crew ID kept', k.fromId, '8001015009087');
-    checks.equal('crew contact kept', k.fromContact, '082 000 0000');
-    checks.equal('crew tax number kept', k.fromTax, '1234567890');
-    checks.equal('bank kept', k.bankName, 'FNB');
-    checks.equal('branch code kept', k.bankBranch, '250655');
-    checks.equal('account number kept', k.bankAcc, '62000000000');
+    checks.equal('crew ID kept', k.fromId, '0000000000000');
+    checks.equal('crew contact kept', k.fromContact, '000 000 0000');
+    checks.equal('crew tax number kept', k.fromTax, '0000000000');
+    checks.equal('bank kept', k.bankName, 'Example Bank');
+    checks.equal('branch code kept', k.bankBranch, '000000');
+    checks.equal('account number kept', k.bankAcc, '00000000000');
     checks.equal('day rate kept', k.dailyRate, '2200');
     checks.equal('PAYE setting kept', k.payeOn, false);
     checks.equal('totals reset to zero', fresh.grand, 0);

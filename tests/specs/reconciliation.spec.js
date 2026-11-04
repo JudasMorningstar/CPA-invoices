@@ -1,7 +1,7 @@
 'use strict';
 const { openInvoice, IN_PAGE } = require('../lib/harness');
 
-// The Chicken Licken invoice: two jobs at two day rates, three hire lines,
+// A real two-section invoice: two jobs at two day rates, three hire lines,
 // invoiced gross. Every surface must land on the same R29 275.
 const INVOICE = {
   dailyRate: 2000,
@@ -26,7 +26,7 @@ const INVOICE = {
 const FEES = 23800, EXTRAS = 5475, GRAND = 29275;
 
 module.exports = {
-  name: 'reconciliation — the Chicken Licken invoice',
+  name: 'reconciliation — two sections at two day rates',
   async run({ browser, fileUrl, checks }) {
     const page = await openInvoice(browser, fileUrl);
     const r = await page.evaluate(`(spec => {

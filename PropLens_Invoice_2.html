@@ -509,18 +509,19 @@
      ══════════════════════════════════════════════ */
 
   /* The totals bar sheds content in measured stages. Laid out in full it needs
-     1546px, so it has never fitted a laptop screen — each tier below drops the
+     1635px, so it has never fitted a laptop screen — each tier below drops the
      least useful thing left until what remains fits on one 48px line. Measured
-     widths, re-checked whenever a button is added:
-       full 1546  ·  no rules/caption 1403  ·  short buttons 989  ·  total only 754 */
-  @media (max-width: 1560px) {
+     with PAYE on, which is the default, and re-checked whenever a button or a
+     bar figure is added:
+       full 1635  ·  no rules/caption 1507  ·  short buttons 1093  ·  total only 754 */
+  @media (max-width: 1650px) {
     #totals-bar { gap: 0 14px; padding: 0 16px; }
     .bar-divider { display: none; }
     .bar-brand { margin-right: 8px; }
     #autosave-label { display: none; }
   }
 
-  @media (max-width: 1420px) {
+  @media (max-width: 1520px) {
     /* Icons + full words no longer fit; keep the words. */
     #new-btn, #save-btn, #load-btn, #export-btn, #pdf-btn {
       font-size: 0; letter-spacing: 0; padding: 8px 14px;
@@ -532,7 +533,7 @@
     #pdf-btn::after    { content: "PDF";  font-size: 15px; letter-spacing: 2px; }
   }
 
-  @media (max-width: 1000px) {
+  @media (max-width: 1105px) {
     /* Taxable / PAYE / Extras stay available in full in Section 4 — in the bar
        only the grand total survives. */
     .bar-item:not(.bar-item-grand) { display: none; }
@@ -779,13 +780,13 @@
           <button onclick="openDirectory('production')" style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1.5px;padding:4px 12px;background:var(--surface3);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;" title="Load from directory">📁 DIRECTORY</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <div class="field"><label>Company Name</label><input id="to-name" type="text" value="We are Creative t/a Star Films" placeholder="e.g. Velocity Films"/></div>
-          <div class="field"><label>Company Address</label><input id="to-addr" type="text" value="8 Stirling Street, Waverley, 2090" placeholder="Street, City, Province"/></div>
+          <div class="field"><label>Company Name</label><input id="to-name" type="text" placeholder="e.g. Velocity Films"/></div>
+          <div class="field"><label>Company Address</label><input id="to-addr" type="text" placeholder="Street, City, Province"/></div>
           <div class="grid-2">
-            <div class="field"><label>Reg Number</label><input id="to-reg" type="text" value="2015/086655/07" placeholder="e.g. 2021/123456/07"/></div>
-            <div class="field"><label>VAT Number</label><input id="to-vat" type="text" value="4110269125" placeholder="e.g. 4123456789"/></div>
+            <div class="field"><label>Reg Number</label><input id="to-reg" type="text" placeholder="e.g. 2021/123456/07"/></div>
+            <div class="field"><label>VAT Number</label><input id="to-vat" type="text" placeholder="e.g. 4123456789"/></div>
           </div>
-          <div class="field"><label>Job / Production Name</label><input id="job-name" type="text" value="Chicken Licken" placeholder="e.g. Takealot TVC 2025"/></div>
+          <div class="field"><label>Job / Production Name</label><input id="job-name" type="text" placeholder="e.g. Takealot TVC 2025"/></div>
         </div>
       </div>
       <div>
@@ -2516,25 +2517,13 @@ window.addEventListener('DOMContentLoaded', () => {
   // Hook inv-date and job-name changes to regenerate invoice number
   document.getElementById('inv-date').addEventListener('change', generateInvoiceNumber);
   document.getElementById('job-name').addEventListener('input', autoInvoiceNumber);
-  // Worked example — the Chicken Licken invoice: two sections at two day rates.
-  // TVC runs at the Section 2 rate (R2 200), so its rows leave Rate blank;
-  // the Stills section overrides it at R2 000.
-  rows = [
-    { id: nextId++, date: '2026-11-09', job: 'Stills', desc: 'Stills day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 },
-    { id: nextId++, date: '2026-11-10', job: 'Stills', desc: 'Stills day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 },
-    { id: nextId++, date: '2026-11-16', job: 'TVC', desc: 'Office / prep — no vehicle', type: 'Pre-Production', call: '', wrap: '', days: 4, rate: '' },
-    { id: nextId++, date: '2026-11-23', job: 'TVC', desc: 'Shoot day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-    { id: nextId++, date: '2026-11-24', job: 'TVC', desc: 'Shoot day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-    { id: nextId++, date: '2026-11-25', job: 'TVC', desc: 'Shoot day 3', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-    { id: nextId++, date: '2026-11-26', job: 'TVC', desc: 'Shoot day 4', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-    { id: nextId++, date: '2026-11-27', job: 'TVC', desc: 'Shoot day 5', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-  ];
-  extras = [
-    { id: nextExtraId++, label: 'Vehicle — loaded (bakkie)', job: 'TVC', days: 2,   rate: 850 },
-    { id: nextExtraId++, label: 'Vehicle — no loading',      job: 'TVC', days: 2.5, rate: 550 },
-    { id: nextExtraId++, label: 'Laptop / Computer Hire',    job: 'TVC', days: 8,   rate: 300 },
-  ];
-  setPayeEnabled(false);  // this job is invoiced gross, as quoted
+  // Ships blank: whoever opens this starts on an empty invoice, exactly as
+  // New Invoice leaves it. The Add Day and Add Section buttons sit under the
+  // empty table. A seeded day would bill a full day rate before anything was
+  // entered, so there is none.
+  rows = [];
+  extras = [];
+
   // Try to restore autosaved session
   try {
     const saved = localStorage.getItem('cpa_invoice_autosave');

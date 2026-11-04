@@ -8,9 +8,9 @@ const VIEWPORTS = [
   ['small-android', 320, 700], ['ipad-portrait', 768, 1024], ['ipad-landscape', 1024, 768],
   ['laptop', 1280, 800], ['desktop', 1440, 900], ['wide', 1920, 1080],
   // Either side of each totals-bar tier, where a control would clip first.
-  ['tier-mobile-edge', 861, 900], ['tier-totals-lo', 1000, 900], ['tier-totals-hi', 1001, 900],
-  ['tier-labels-lo', 1420, 900], ['tier-labels-hi', 1421, 900],
-  ['tier-rules-lo', 1560, 900], ['tier-rules-hi', 1561, 900],
+  ['tier-mobile-edge', 861, 900], ['tier-totals-lo', 1105, 900], ['tier-totals-hi', 1106, 900],
+  ['tier-labels-lo', 1520, 900], ['tier-labels-hi', 1521, 900],
+  ['tier-rules-lo', 1650, 900], ['tier-rules-hi', 1651, 900],
 ];
 
 module.exports = {

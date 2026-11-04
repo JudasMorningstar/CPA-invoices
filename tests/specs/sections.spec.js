@@ -10,10 +10,30 @@ module.exports = {
     const page = await openInvoice(browser, fileUrl);
     await page.evaluate('window.confirm = () => true');
 
-    // The shipped example: the Section 2 rate is the main one, and the odd
-    // section out carries the override.
+    // The template ships blank, so the spec builds its own two sections: one
+    // running at the Section 2 rate, one overriding it.
     const shipped = await page.evaluate(`(() => {
       ${IN_PAGE}
+      document.getElementById('daily-rate').value = 2200;
+      setPayeEnabled(false);
+      rows = [
+        { id: 1, date: '2026-11-09', job: 'Stills', desc: 'd1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 },
+        { id: 2, date: '2026-11-10', job: 'Stills', desc: 'd2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 },
+        { id: 3, date: '2026-11-16', job: 'TVC', desc: 'prep', type: 'Pre-Production', call: '', wrap: '', days: 4, rate: '' },
+        { id: 4, date: '2026-11-23', job: 'TVC', desc: 's1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+        { id: 5, date: '2026-11-24', job: 'TVC', desc: 's2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+        { id: 6, date: '2026-11-25', job: 'TVC', desc: 's3', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+        { id: 7, date: '2026-11-26', job: 'TVC', desc: 's4', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+        { id: 8, date: '2026-11-27', job: 'TVC', desc: 's5', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+      ];
+      nextId = 9;
+      extras = [
+        { id: 1, label: 'Vehicle — loaded', job: 'TVC', days: 2, rate: 850 },
+        { id: 2, label: 'Vehicle — no loading', job: 'TVC', days: 2.5, rate: 550 },
+        { id: 3, label: 'Laptop hire', job: 'TVC', days: 8, rate: 300 },
+      ];
+      nextExtraId = 4;
+      renderTable(); renderExtras();
       return {
         globalRate: document.getElementById('daily-rate').value,
         sections: sectionNames(),
@@ -25,12 +45,12 @@ module.exports = {
       };
     })()`);
 
-    checks.equal('Section 2 shows the main rate', shipped.globalRate, '2200');
-    checks.equal('Stills section is overridden', shipped.stillsRate, '2000');
-    checks.equal('TVC section inherits (blank)', shipped.tvcRate, '');
-    checks.equal('TVC rows bill at the inherited rate', shipped.tvcRowRate, 2200);
-    checks.equal('Stills rows bill at the override', shipped.stillsRowRate, 2000);
-    checks.equal('totals unchanged by the flip', shipped.grand, 29275);
+    checks.equal('Section 2 holds the main rate', shipped.globalRate, '2200');
+    checks.equal('the overriding section reports its own rate', shipped.stillsRate, '2000');
+    checks.equal('the inheriting section reports blank', shipped.tvcRate, '');
+    checks.equal('inheriting rows bill at the Section 2 rate', shipped.tvcRowRate, 2200);
+    checks.equal('overriding rows bill at their own rate', shipped.stillsRowRate, 2000);
+    checks.equal('two sections reconcile to one total', shipped.grand, 29275);
 
     // Adding a section
     const added = await page.evaluate(`(() => {
