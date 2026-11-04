@@ -219,10 +219,42 @@
   tr.job-row td {
     background: rgba(200,146,42,0.10);
     border-bottom: 1px solid var(--amber-dim) !important;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 15px; letter-spacing: 2.5px; color: var(--amber);
-    padding: 7px 10px !important; text-align: left !important;
+    padding: 5px 10px !important; text-align: left !important;
   }
+  .sec-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sec-bar .sec-name {
+    background: transparent; border: 1px solid transparent;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px; letter-spacing: 2.5px; color: var(--amber);
+    padding: 3px 6px; outline: none; min-width: 90px; width: 150px;
+  }
+  .sec-bar .sec-name:hover { border-color: var(--border); }
+  .sec-bar .sec-name:focus { border-color: var(--amber); background: var(--surface); }
+  .sec-bar .sec-rate {
+    display: flex; align-items: center; gap: 5px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim);
+  }
+  .sec-bar .sec-rate input {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    padding: 4px 6px; width: 74px; outline: none; text-align: right;
+  }
+  .sec-bar .sec-rate input:focus { border-color: var(--amber); }
+  .sec-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+    letter-spacing: 1.2px; padding: 5px 9px; cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .sec-btn:hover { border-color: var(--amber); color: var(--amber); }
+  .sec-btn.sec-del { margin-left: auto; font-size: 14px; line-height: 1; padding: 3px 9px; }
+  .sec-btn.sec-del:hover { border-color: var(--red); color: var(--red); }
+
+  .add-row-group { display: flex; gap: 2px; margin-top: 2px; }
+  /* .add-row-btn is width:100% on its own; inside the flex row it shares instead. */
+  .add-row-group .add-row-btn { margin-top: 0; width: auto; flex: 1 1 auto; }
+  .add-section-btn { flex: 0 0 auto; padding-left: 26px; padding-right: 26px; color: var(--amber); border-color: var(--amber-dim); }
   tr.job-sub td {
     background: rgba(255,255,255,0.03);
     border-bottom: 1px solid var(--border) !important;
@@ -589,6 +621,13 @@
     table.ts tr.job-row td, table.ts tr.job-sub td { flex: 1 1 auto; }
     table.ts tr.job-sub td.job-sub-val { flex: 0 0 auto; }
     table.ts tr.job-row td::before, table.ts tr.job-sub td::before { display: none; }
+    table.ts tr.job-row td { padding: 0 !important; background: none; border: none !important; }
+    .sec-bar { gap: 6px; padding: 8px; background: rgba(200,146,42,0.10); border: 1px solid var(--amber-dim); }
+    .sec-bar .sec-name { flex: 1 1 100%; width: auto; font-size: 17px; }
+    .sec-bar .sec-rate input { width: 64px; font-size: 14px; }
+    .sec-btn { padding: 7px 10px; }
+    .add-row-group { flex-wrap: wrap; }
+    .add-row-group .add-row-btn { flex: 1 1 100%; }
     table.ts tr.job-row td:empty, table.ts tr.job-sub td:empty { display: none; }
     table.ts td.c-call, table.ts td.c-wrap, table.ts td.c-days { flex: 1 1 28%; min-width: 0; }
     table.ts td.c-call .time-text, table.ts td.c-wrap .time-text { text-align: center; }
@@ -795,7 +834,7 @@
 
   <div class="rate-hero">
     <label>R</label>
-    <input id="daily-rate" type="number" value="2000" min="0" oninput="recalcAll()"/>
+    <input id="daily-rate" type="number" value="2200" min="0" oninput="recalcAll()"/>
     <div class="derived">
       Hourly rate (÷10): <span id="hourly-display">R 200</span><br/>
       <span style="font-size:9px;opacity:0.6" id="base-hrs-label">CPA standard: 1 day = 10 base hours</span>
@@ -862,7 +901,10 @@
       </thead>
       <tbody id="ts-body"></tbody>
     </table>
-    <button class="add-row-btn" onclick="addRow()">+ ADD DAY</button>
+    <div class="add-row-group">
+      <button class="add-row-btn" onclick="addRow()">+ ADD DAY</button>
+      <button class="add-row-btn add-section-btn" onclick="addSection()">+ ADD SECTION</button>
+    </div>
   </div>
 
   <!-- TAXABLE SUBTOTALS -->
@@ -1255,7 +1297,8 @@ function renderTable() {
     if (grouped && g.name) {
       const head = document.createElement('tr');
       head.className = 'job-row';
-      head.innerHTML = `<td colspan="19">${esc(g.name)}</td>`;
+      head.dataset.job = g.name;
+      head.innerHTML = `<td colspan="19">${sectionBar(g.name, 'rows')}</td>`;
       tbody.appendChild(head);
     }
 
@@ -1303,6 +1346,97 @@ function renderTable() {
 
   renderJobNames();
   recalcTotals();
+}
+
+// ──────────────────────────────────────────────
+// SECTIONS
+// A section is just a job label shared by some rows and extras lines — there
+// is no separate structure to keep in step. These helpers make it behave like
+// a thing you can add, rename, re-rate and remove.
+// The name is read back off the row's data attribute so it never has to be
+// quoted into an inline handler.
+// ──────────────────────────────────────────────
+
+function sectionNames() {
+  return [...new Set([...rows, ...extras].map(x => (x.job || '').trim()).filter(Boolean))];
+}
+
+// One rate for the whole section, or blank when its rows disagree.
+function sectionRate(name) {
+  const set = [...new Set(rows.filter(r => (r.job || '').trim() === name)
+                              .map(r => String(r.rate == null ? '' : r.rate).trim()))];
+  return set.length === 1 ? set[0] : '';
+}
+
+function sectionBar(name, which) {
+  const mixed = which === 'rows' && sectionRate(name) === ''
+    && [...new Set(rows.filter(r => (r.job || '').trim() === name).map(r => String(r.rate || '')))].length > 1;
+  const rateField = which === 'rows' ? `
+      <label class="sec-rate">Rate
+        <input type="number" min="0" value="${esc(sectionRate(name))}"
+               placeholder="${mixed ? 'mixed' : Math.round(getDailyRate())}"
+               title="Sets the day rate for every row in this section"
+               onchange="setSectionRate(this.closest('tr').dataset.job, this.value)"/>
+      </label>` : '';
+  return `
+    <div class="sec-bar">
+      <input class="sec-name" value="${esc(name)}" aria-label="Section name"
+             onchange="renameSection(this.closest('tr').dataset.job, this.value)"/>
+      ${rateField}
+      <button class="sec-btn" onclick="addRowToSection(this.closest('tr').dataset.job)">+ DAY</button>
+      <button class="sec-btn" onclick="addExtraToSection(this.closest('tr').dataset.job)">+ EXTRA</button>
+      <button class="sec-btn sec-del" title="Remove this section"
+              onclick="deleteSection(this.closest('tr').dataset.job)">×</button>
+    </div>`;
+}
+
+function renameSection(oldName, raw) {
+  const next = String(raw).trim();
+  if (next === oldName) return;
+  rows.forEach(r => { if ((r.job || '').trim() === oldName) r.job = next; });
+  extras.forEach(e => { if ((e.job || '').trim() === oldName) e.job = next; });
+  renderTable(); renderExtras();
+}
+
+function setSectionRate(name, value) {
+  rows.forEach(r => { if ((r.job || '').trim() === name) r.rate = value; });
+  recalcAll();
+}
+
+function addRowToSection(name) {
+  rows.push({ id: nextId++, date: '', job: name, desc: '', type: 'Shoot Day',
+              call: '07:00', wrap: '17:00', days: 1, rate: sectionRate(name) });
+  renderTable();
+}
+
+function addExtraToSection(name) {
+  extras.push({ id: nextExtraId++, label: '', job: name, days: '', rate: '' });
+  renderExtras();
+}
+
+function deleteSection(name) {
+  const nRows = rows.filter(r => (r.job || '').trim() === name).length;
+  const nExtras = extras.filter(e => (e.job || '').trim() === name).length;
+  const bits = [];
+  if (nRows) bits.push(nRows + (nRows === 1 ? ' day' : ' days'));
+  if (nExtras) bits.push(nExtras + (nExtras === 1 ? ' extras line' : ' extras lines'));
+  if (bits.length && !confirm(`Remove the "${name}" section and its ${bits.join(' and ')}?`)) return;
+  rows = rows.filter(r => (r.job || '').trim() !== name);
+  extras = extras.filter(e => (e.job || '').trim() !== name);
+  renderTable(); renderExtras();
+}
+
+// A new section starts with one day in it, so it is visible straight away.
+function addSection() {
+  const taken = new Set(sectionNames());
+  let n = taken.size + 1, name = 'Job ' + n;
+  while (taken.has(name)) name = 'Job ' + (++n);
+  rows.push({ id: nextId++, date: '', job: name, desc: '', type: 'Shoot Day',
+              call: '07:00', wrap: '17:00', days: 1, rate: '' });
+  renderTable();
+  const field = [...document.querySelectorAll('#ts-body tr.job-row')]
+    .find(tr => tr.dataset.job === name);
+  if (field) field.querySelector('.sec-name').select();
 }
 
 // Typing a job on one row offers it on every other row and extras line.
@@ -1398,7 +1532,8 @@ function renderExtras() {
     if (grouped && g.name) {
       const head = document.createElement('tr');
       head.className = 'job-row';
-      head.innerHTML = `<td colspan="6">${esc(g.name)}</td>`;
+      head.dataset.job = g.name;
+      head.innerHTML = `<td colspan="6">${sectionBar(g.name, 'extras')}</td>`;
       tb.appendChild(head);
     }
 
@@ -2339,18 +2474,18 @@ window.addEventListener('DOMContentLoaded', () => {
   // Hook inv-date and job-name changes to regenerate invoice number
   document.getElementById('inv-date').addEventListener('change', generateInvoiceNumber);
   document.getElementById('job-name').addEventListener('input', autoInvoiceNumber);
-  // Worked example — the Chicken Licken invoice: two jobs at two day rates.
-  // Stills rows leave Rate blank so they inherit the Section 2 rate (R2 000);
-  // the TVC rows override it at R2 200.
+  // Worked example — the Chicken Licken invoice: two sections at two day rates.
+  // TVC runs at the Section 2 rate (R2 200), so its rows leave Rate blank;
+  // the Stills section overrides it at R2 000.
   rows = [
-    { id: nextId++, date: '2026-11-09', job: 'Stills', desc: 'Stills day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-    { id: nextId++, date: '2026-11-10', job: 'Stills', desc: 'Stills day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
-    { id: nextId++, date: '2026-11-16', job: 'TVC', desc: 'Office / prep — no vehicle', type: 'Pre-Production', call: '', wrap: '', days: 4, rate: 2200 },
-    { id: nextId++, date: '2026-11-23', job: 'TVC', desc: 'Shoot day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
-    { id: nextId++, date: '2026-11-24', job: 'TVC', desc: 'Shoot day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
-    { id: nextId++, date: '2026-11-25', job: 'TVC', desc: 'Shoot day 3', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
-    { id: nextId++, date: '2026-11-26', job: 'TVC', desc: 'Shoot day 4', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
-    { id: nextId++, date: '2026-11-27', job: 'TVC', desc: 'Shoot day 5', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2200 },
+    { id: nextId++, date: '2026-11-09', job: 'Stills', desc: 'Stills day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 },
+    { id: nextId++, date: '2026-11-10', job: 'Stills', desc: 'Stills day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: 2000 },
+    { id: nextId++, date: '2026-11-16', job: 'TVC', desc: 'Office / prep — no vehicle', type: 'Pre-Production', call: '', wrap: '', days: 4, rate: '' },
+    { id: nextId++, date: '2026-11-23', job: 'TVC', desc: 'Shoot day 1', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+    { id: nextId++, date: '2026-11-24', job: 'TVC', desc: 'Shoot day 2', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+    { id: nextId++, date: '2026-11-25', job: 'TVC', desc: 'Shoot day 3', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+    { id: nextId++, date: '2026-11-26', job: 'TVC', desc: 'Shoot day 4', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
+    { id: nextId++, date: '2026-11-27', job: 'TVC', desc: 'Shoot day 5', type: 'Shoot Day', call: '08:00', wrap: '18:00', days: 1, rate: '' },
   ];
   extras = [
     { id: nextExtraId++, label: 'Vehicle — loaded (bakkie)', job: 'TVC', days: 2,   rate: 850 },

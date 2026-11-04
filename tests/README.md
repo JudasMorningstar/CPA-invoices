@@ -41,6 +41,7 @@ Output lands in `tests/out/` and is ignored by git.
 | `reconciliation` | The Chicken Licken invoice — two jobs at two day rates, three hire lines, invoiced gross — must reach R29 275 in the app, the PDF and the workbook's evaluated formulas, with the per-job split intact. |
 | `money` | Randomised invoices: every printed column foots to its printed total, per-job subtotals never exceed the whole, PAYE is 25% or nothing, and the workbook agrees with the app. |
 | `tax` | The PAYE switch reaches all four surfaces. With it off the PAYE lines are *hidden*, not zeroed, so the invoice never implies a deduction that was not made. |
+| `sections` | Sections are a shared job label, not a second structure: adding, renaming, re-rating and removing one must keep its rows and extras together and move the totals with them. |
 | `sessions` | `.cpa` files saved before extras became a list still load; jobs and per-row rates survive save and restore; autosave restores on reload. |
 | `exports` | The PDF prints with no browser header or `file://` footer, lands on A4 at 14mm/12mm margins, and its stylesheet does not leak into the app afterwards. |
 | `layout` | No horizontal overflow and no sticky-bar overlap from 320px to 1920px. |
