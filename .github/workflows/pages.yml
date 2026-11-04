@@ -1,0 +1,61 @@
+name: Publish invoice
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; finish the one in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Regression suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        working-directory: tests
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: tests
+        run: npx playwright install --with-deps chromium
+      - name: Run
+        working-directory: tests
+        run: npm test
+
+  deploy:
+    name: Deploy to Pages
+    # A page people invoice from should not go out red.
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on the first time this runs, so no settings visit.
+          enablement: true
+      - name: Assemble the site
+        # Publish the invoice alone — the tests have no business being served.
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp .nojekyll _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
