@@ -1,0 +1,12 @@
+{
+  "name": "cpa-invoice-tests",
+  "private": true,
+  "description": "Regression tests for PropLens_Invoice_2.html",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "playwright-core": "^1.49.0"
+  }
+}

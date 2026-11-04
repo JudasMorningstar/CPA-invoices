@@ -660,6 +660,18 @@
   @media (max-width: 400px) {
     .bar-brand { font-size: 13px; }
     .inv-meta .field { flex: 1 1 100%; }
+
+    /* Six columns of extras do not fit a 320px screen at the wider sizes;
+       trim them so the row still fits without the page scrolling sideways. */
+    .panel { padding: 10px; }
+    table.extras th, table.extras td { padding: 7px 4px; }
+    table.extras th:nth-child(2), table.extras td:nth-child(2) { width: 48px; }
+    table.extras th:nth-child(3), table.extras td:nth-child(3) { width: 36px; }
+    table.extras th:nth-child(4), table.extras td:nth-child(4) { width: 46px; }
+    table.extras th:nth-child(5), table.extras td:nth-child(5) { width: 58px; }
+    table.extras th:nth-child(6), table.extras td:nth-child(6) { width: 20px; }
+    table.extras td input { font-size: 14px; padding: 7px 3px; }
+    table.extras .del-btn { padding: 3px 4px; font-size: 16px; }
   }
 </style>
 </head>
